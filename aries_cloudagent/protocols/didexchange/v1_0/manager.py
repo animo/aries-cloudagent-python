@@ -1,6 +1,5 @@
 """Classes to manage connection establishment under RFC 23 (DID exchange)."""
 
-from aries_cloudagent.multitenant.manager import MultitenantManager
 import json
 import logging
 
@@ -23,6 +22,7 @@ from ....storage.error import StorageNotFoundError
 from ....storage.record import StorageRecord
 from ....transport.inbound.receipt import MessageReceipt
 from ....wallet.base import BaseWallet, DIDInfo
+from ....multitenant.manager import MultitenantManager
 
 from ...out_of_band.v1_0.messages.invitation import (
     InvitationMessage as OOBInvitationMessage,
@@ -173,6 +173,10 @@ class DIDXManager:
             A new `DIDXRequest` message to send to the other agent
 
         """
+        # Multitenancy setup
+        multitenant_mgr = self._session.inject(MultitenantManager, required=False)
+        wallet_id = self._session.settings.get("wallet.id")
+
         wallet = self._session.inject(BaseWallet)
         if conn_rec.my_did:
             my_info = await wallet.get_local_did(conn_rec.my_did)
@@ -180,6 +184,10 @@ class DIDXManager:
             # Create new DID for connection
             my_info = await wallet.create_local_did()
             conn_rec.my_did = my_info.did
+
+            # Add mapping for multitenant relay
+            if multitenant_mgr and wallet_id:
+                await multitenant_mgr.add_wallet_route(wallet_id, my_info.verkey)
 
         # Create connection request message
         if my_endpoint:
@@ -217,16 +225,6 @@ class DIDXManager:
         conn_rec.state = ConnRecord.State.REQUEST.rfc23
         await conn_rec.save(self._session, reason="Created connection request")
 
-        # Multitenancy: add routing for key to handle inbound messages using relay
-        multitenant_enabled = self._session.settings.get("multitenant.enabled")
-        wallet_id = self._session.settings.get("wallet.id")
-        if multitenant_enabled and wallet_id:
-            multitenant_mgr = self._session.inject(MultitenantManager)
-            await multitenant_mgr.add_wallet_route(
-                wallet_id=wallet_id,
-                recipient_key=my_info.verkey,
-            )
-
         return request
 
     async def receive_request(
@@ -252,6 +250,10 @@ class DIDXManager:
         connection_key = None
         my_info = None
         wallet = self._session.inject(BaseWallet)
+
+        # Multitenancy setup
+        multitenant_mgr = self._session.inject(MultitenantManager, required=False)
+        wallet_id = self._session.settings.get("wallet.id")
 
         try:
             invi_rec = await OOBInvitationRecord.retrieve_by_tag_filter(
@@ -297,6 +299,10 @@ class DIDXManager:
                     reason="Received connection request from multi-use invitation DID",
                 )
                 conn_rec = new_conn_rec
+
+                # Add mapping for multitenant relay
+                if multitenant_mgr and wallet_id:
+                    await multitenant_mgr.add_wallet_route(wallet_id, my_info.verkey)
 
         if not (request.did_doc_attach and request.did_doc_attach.data):
             raise DIDXManagerError(
@@ -344,21 +350,15 @@ class DIDXManager:
             await conn_rec.save(
                 self._session, reason="Received connection request from public DID"
             )
+
+            # Add mapping for multitenant relay
+            if multitenant_mgr and wallet_id:
+                await multitenant_mgr.add_wallet_route(wallet_id, my_info.verkey)
         else:
             raise DIDXManagerError("Public invitations are not enabled")
 
         # Attach the connection request so it can be found and responded to
         await conn_rec.attach_request(self._session, request)
-
-        # Multitenancy: add routing for key to handle inbound messages using relay
-        multitenant_enabled = self._session.settings.get("multitenant.enabled")
-        wallet_id = self._session.settings.get("wallet.id")
-        if my_info and multitenant_enabled and wallet_id:
-            multitenant_mgr = self._session.inject(MultitenantManager)
-            await multitenant_mgr.add_wallet_route(
-                wallet_id=wallet_id,
-                recipient_key=my_info.verkey,
-            )
 
         if invi_rec.auto_accept:
             response = await self.create_response(conn_rec)
@@ -396,6 +396,10 @@ class DIDXManager:
             {"connection_id": conn_rec.connection_id},
         )
 
+        # Multitenancy setup
+        multitenant_mgr = self._session.inject(MultitenantManager, required=False)
+        wallet_id = self._session.settings.get("wallet.id")
+
         if ConnRecord.State.get(conn_rec.state) is not ConnRecord.State.REQUEST:
             raise DIDXManagerError(
                 f"Connection not in state {ConnRecord.State.REQUEST.rfc23}"
@@ -408,6 +412,10 @@ class DIDXManager:
         else:
             my_info = await wallet.create_local_did()
             conn_rec.my_did = my_info.did
+
+            # Add mapping for multitenant relay
+            if multitenant_mgr and wallet_id:
+                await multitenant_mgr.add_wallet_route(wallet_id, my_info.verkey)
 
         # Create connection response message
         if my_endpoint:
@@ -440,16 +448,6 @@ class DIDXManager:
             reason="Created connection response",
             log_params={"response": response},
         )
-
-        # Multitenancy: add routing for key to handle inbound messages using relay
-        multitenant_enabled = self._session.settings.get("multitenant.enabled")
-        wallet_id = self._session.settings.get("wallet.id")
-        if multitenant_enabled and wallet_id:
-            multitenant_mgr = self._session.inject(MultitenantManager)
-            await multitenant_mgr.add_wallet_route(
-                wallet_id=wallet_id,
-                recipient_key=my_info.verkey,
-            )
 
         return response
 
