@@ -3,6 +3,7 @@
 import json
 
 from datetime import datetime
+import re
 
 from base58 import alphabet
 from marshmallow.validate import OneOf, Range, Regexp
@@ -335,6 +336,28 @@ class IndyISO8601DateTime(Regexp):
         super().__init__(
             IndyISO8601DateTime.PATTERN,
             error="Value {input} is not a date in valid format",
+        )
+
+
+class RFC3339DateTime(Regexp):
+    """Validate value against RFC3339 datetime format"""
+
+    EXAMPLE = "2010-01-01T19:23:24Z"
+    PATTERN = (
+        r"^(\\d{4})-(0[1-9]|1[0-2])-"
+        r"(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):"
+        r"([0-5][0-9]):([0-5][0-9]|60)"
+        r"(\\.[0-9]+)?(Z|(\\+|-)([01][0-9]|2[0-3]):"
+        r"([0-5][0-9]))$"
+    )
+
+    def __init__(self):
+        """Initializer."""
+
+        super().__init__(
+            RFC3339DateTime.PATTERN,
+            error="Value {input} is not a date in valid format",
+            flags=re.IGNORECASE,
         )
 
 
