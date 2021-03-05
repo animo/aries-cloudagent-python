@@ -37,7 +37,10 @@ class TestV20FormatFormat(TestCase):
         assert (
             V20CredFormat.Format.get("HL/INDY").detail.__name__ == "V20CredExRecordIndy"
         )
-        assert V20CredFormat.Format.get("dif").detail.__name__ == "V20CredExRecordDIF"
+        assert (
+            V20CredFormat.Format.get("ldproof").detail.__name__
+            == "V20CredExRecordLDProof"
+        )
 
     def test_get_attachment_data(self):
         assert (
@@ -65,7 +68,7 @@ class TestV20FormatFormat(TestCase):
         )
 
         assert (
-            V20CredFormat.Format.DIF.get_attachment_data(
+            V20CredFormat.Format.LD_PROOF.get_attachment_data(
                 formats=[
                     V20CredFormat(attach_id="abc", format_=V20CredFormat.Format.INDY)
                 ],

@@ -33,13 +33,13 @@ class TestV20CredRoutes(AsyncTestCase):
         filt.validate_fields(
             {
                 "indy": {"issuer_did": TEST_DID},
-                "dif": {"some_dif_criterion": "..."},
+                "ld_proof": {"some_ld_proof_criterion": "..."},
             }
         )
         filt.validate_fields(
             {
                 "indy": {},
-                "dif": {"some_dif_criterion": "..."},
+                "ld_proof": {"some_ld_proof_criterion": "..."},
             }
         )
         with self.assertRaises(test_module.ValidationError):
@@ -81,7 +81,7 @@ class TestV20CredRoutes(AsyncTestCase):
                             {
                                 "cred_ex_record": mock_cx_rec.serialize.return_value,
                                 "indy": None,
-                                "dif": None,
+                                "ld_proof": None,
                             }
                         ]
                     }
@@ -126,7 +126,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     async_mock.MagicMock(  # indy
                         serialize=async_mock.MagicMock(return_value={"...": "..."})
                     ),
-                    None,  # dif
+                    None,  # ld_proof
                 ]
             )
 
@@ -138,7 +138,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     {
                         "cred_ex_record": mock_cx_rec.serialize.return_value,
                         "indy": {"...": "..."},
-                        "dif": None,
+                        "ld_proof": None,
                     }
                 )
 
@@ -1098,7 +1098,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     async_mock.MagicMock(  # indy
                         serialize=async_mock.MagicMock(return_value={"...": "..."})
                     ),
-                    None,  # dif
+                    None,  # ld_proof
                 ]
             )
 
@@ -1113,7 +1113,7 @@ class TestV20CredRoutes(AsyncTestCase):
                 {
                     "cred_ex_record": mock_cx_rec.serialize.return_value,
                     "indy": {"...": "..."},
-                    "dif": None,
+                    "ld_proof": None,
                 }
             )
 
@@ -1249,7 +1249,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     async_mock.MagicMock(  # indy
                         serialize=async_mock.MagicMock(return_value={"...": "..."})
                     ),
-                    None,  # dif
+                    None,  # ld_proof
                 ]
             )
 
@@ -1280,7 +1280,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     async_mock.MagicMock(  # indy
                         serialize=async_mock.MagicMock(return_value={"...": "..."})
                     ),
-                    None,  # dif
+                    None,  # ld_proof
                 ]
             )
 
@@ -1297,7 +1297,7 @@ class TestV20CredRoutes(AsyncTestCase):
                 {
                     "cred_ex_record": mock_cx_rec.serialize.return_value,
                     "indy": {"...": "..."},
-                    "dif": None,
+                    "ld_proof": None,
                 }
             )
 
@@ -1329,7 +1329,7 @@ class TestV20CredRoutes(AsyncTestCase):
                     async_mock.MagicMock(  # indy
                         serialize=async_mock.MagicMock(return_value={"...": "..."})
                     ),
-                    None,  # dif
+                    None,  # ld_proof
                 ]
             )
 
@@ -1344,7 +1344,7 @@ class TestV20CredRoutes(AsyncTestCase):
                 {
                     "cred_ex_record": mock_cx_rec.serialize.return_value,
                     "indy": {"...": "..."},
-                    "dif": None,
+                    "ld_proof": None,
                 }
             )
 
