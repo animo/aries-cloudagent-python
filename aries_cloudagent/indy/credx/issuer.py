@@ -395,7 +395,9 @@ class IndyCredxIssuer(IndyIssuer):
         try:
             rev_reg_def = RevocationRegistryDefinition.load(rev_reg_def.raw_value)
         except CredxError as err:
-            raise IndyIssuerError("Error loading revocation registry definition") from err
+            raise IndyIssuerError(
+                "Error loading revocation registry definition"
+            ) from err
 
         rev_crids = []
         failed_crids = []
