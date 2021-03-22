@@ -18,9 +18,9 @@ from ..messaging.models.openapi import OpenAPISchema
 from ..messaging.valid import (
     DID_POSTURE,
     INDY_OR_KEY_DID,
-    INDY_DID,
     ENDPOINT,
     ENDPOINT_TYPE,
+    DID,
     INDY_RAW_PUBLIC_KEY,
 )
 from ..multitenant.manager import MultitenantManager
@@ -64,7 +64,7 @@ class DIDListSchema(OpenAPISchema):
 class DIDEndpointWithTypeSchema(OpenAPISchema):
     """Request schema to set DID endpoint of particular type."""
 
-    did = fields.Str(description="DID of interest", required=True, **INDY_DID)
+    did = fields.Str(description="DID of interest", required=True, **DID)
     endpoint = fields.Str(
         description="Endpoint to set (omit to delete)", required=False, **ENDPOINT
     )
@@ -81,7 +81,7 @@ class DIDEndpointWithTypeSchema(OpenAPISchema):
 class DIDEndpointSchema(OpenAPISchema):
     """Request schema to set DID endpoint; response schema to get DID endpoint."""
 
-    did = fields.Str(description="DID of interest", required=True, **INDY_DID)
+    did = fields.Str(description="DID of interest", required=True, **DID)
     endpoint = fields.Str(
         description="Endpoint to set (omit to delete)", required=False, **ENDPOINT
     )
@@ -116,7 +116,7 @@ class DIDListQueryStringSchema(OpenAPISchema):
 class DIDQueryStringSchema(OpenAPISchema):
     """Parameters and validators for set public DID request query string."""
 
-    did = fields.Str(description="DID of interest", required=True, **INDY_DID)
+    did = fields.Str(description="DID of interest", required=True, **DID)
 
 
 class DIDCreateOptionsSchema(OpenAPISchema):
