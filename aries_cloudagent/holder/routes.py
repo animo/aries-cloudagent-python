@@ -352,13 +352,13 @@ async def dif_cred_get(request: web.BaseRequest):
     session = await context.session()
     holder = session.inject(VCHolder)
     try:
-        vc_record = await holder.retrieve_credential_by_given_id(credential_id)
+        vc_record = await holder.retrieve_credential_by_id(credential_id)
     except StorageNotFoundError as err:
         raise web.HTTPNotFound(reason=err.roll_up) from err
     except StorageError as err:
         raise web.HTTPBadRequest(reason=err.roll_up) from err
 
-    return web.json_response(vc_record)
+    return web.json_response(vc_record.serialize())
 
 
 @docs(
@@ -429,12 +429,13 @@ async def dif_creds_list(request: web.BaseRequest):
             contexts, types, schema_ids, issuer_id, subject_id, tag_query
         )
         records = await search.fetch(max_results)
+        results = [record.serialize() for record in records]
     except StorageNotFoundError as err:
         raise web.HTTPNotFound(reason=err.roll_up) from err
     except StorageError as err:
         raise web.HTTPBadRequest(reason=err.roll_up) from err
 
-    return web.json_response({"results": records})
+    return web.json_response({"results": results})
 
 
 async def register(app: web.Application):
@@ -461,7 +462,7 @@ async def register(app: web.Application):
                 allow_head=False,
             ),
             web.delete("/credential/dif/{credential_id}", dif_cred_remove),
-            web.get("/credentials/dif", dif_creds_list, allow_head=False),
+            web.post("/credentials/dif", dif_creds_list),
         ]
     )
 
