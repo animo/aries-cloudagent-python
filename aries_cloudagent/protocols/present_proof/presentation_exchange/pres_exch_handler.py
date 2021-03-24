@@ -220,28 +220,31 @@ async def filter_constraints(
             continue
 
         if constraints.limit_disclosure or predicate:
-            credential_dict = json.loads(credential.value)
-            new_credential_dict = {}
-            new_credential_dict["@context"] = credential_dict.get("@context")
-            new_credential_dict["type"] = credential_dict.get("type")
-            unflatten_dict = {}
-            for field in constraints._fields:
-                for path in field.paths:
-                    jsonpath = parse(path)
-                    match = jsonpath.find(credential_dict)
-                    if len(match) == 0:
-                        continue
-                    for match_item in match:
-                        full_path = str(match_item.full_path)
-                        match_value = match_item.value
-                        unflatten_dict[full_path] = match_value
+            # credential_dict = json.loads(credential.value)
+            # new_credential_dict = {}
+            # new_credential_dict["@context"] = credential_dict.get("@context")
+            # new_credential_dict["type"] = credential_dict.get("type")
+            # unflatten_dict = {}
+            # for field in constraints._fields:
+            #     for path in field.paths:
+            #         jsonpath = parse(path)
+            #         match = jsonpath.find(credential_dict)
+            #         if len(match) == 0:
+            #             continue
+            #         for match_item in match:
+            #             full_path = str(match_item.full_path)
+            #             match_value = match_item.value
+            #             unflatten_dict[full_path] = match_value
 
-            signed_new_credential_dict = await issue(
-                credential=new_credential_builder(new_credential_dict, unflatten_dict),
-            )
-            credential = VCRecord.deserialize_jsonld_cred(
-                json.dumps(signed_new_credential_dict)
-            )
+            # signed_new_credential_dict = await issue(
+            #     credential=new_credential_builder(new_credential_dict, unflatten_dict),
+            # )
+            # credential = VCRecord.deserialize_jsonld_cred(
+            #     json.dumps(signed_new_credential_dict)
+            # )
+            # Need mechanism to derive proof
+            #
+            raise PresentationExchError("Not yet implemented")
         result.append(credential)
     return result
 
