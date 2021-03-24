@@ -15,10 +15,12 @@ import re
 from dateutil.parser import parse as dateutil_parser
 from jsonpath_ng import parse
 from typing import Sequence, Optional
+from unflatten import unflatten
 from uuid import uuid4
 
 from ....core.error import BaseError
 from ....storage.vc_holder.vc_record import VCRecord
+from ....vc.vc_ld.issue import issue
 
 from .pres_exch import (
     PresentationDefinition,
@@ -217,12 +219,46 @@ async def filter_constraints(
         if not applicable:
             continue
 
-        # TODO: create new credential with selective disclosure
         if constraints.limit_disclosure or predicate:
-            raise PresentationExchError("Not yet implemented - createNewCredential")
+            credential_dict = json.loads(credential.value)
+            new_credential_dict = {}
+            new_credential_dict["@context"] = credential_dict.get("@context")
+            new_credential_dict["type"] = credential_dict.get("type")
+            unflatten_dict = {}
+            for field in constraints._fields:
+                for path in field.paths:
+                    jsonpath = parse(path)
+                    match = jsonpath.find(credential_dict)
+                    if len(match) == 0:
+                        continue
+                    for match_item in match:
+                        full_path = str(match_item.full_path)
+                        match_value = match_item.value
+                        unflatten_dict[full_path] = match_value
 
+            signed_new_credential_dict = await issue(
+                credential=new_credential_builder(new_credential_dict, unflatten_dict),
+            )
+            credential = VCRecord.deserialize_jsonld_cred(
+                json.dumps(signed_new_credential_dict)
+            )
         result.append(credential)
     return result
+
+
+def new_credential_builder(new_credential: dict, unflatten_dict: dict) -> dict:
+    """
+    Update and return the new_credential.
+
+    Args:
+        new_credential: credential dict to be updated and returned
+        unflatten_dict: dict with traversal path as key and match_value as value
+    Return:
+        dict
+
+    """
+    new_credential.update(unflatten(unflatten_dict))
+    return new_credential
 
 
 async def filter_by_field(field: Field, credential: VCRecord) -> bool:
