@@ -610,7 +610,9 @@ class CredentialType(Validator):
     def __call__(self, value):
         length = len(value)
 
-        if length < 1 or value[0] != CredentialType.FIRST_TYPE:
+        # Derive credential does not have VerifiableCredential as first type
+        # TOCHECK
+        if length < 1 or CredentialType.FIRST_TYPE not in value:
             raise ValidationError(
                 f"First type {value[0]} must be {CredentialType.FIRST_TYPE}"
             )

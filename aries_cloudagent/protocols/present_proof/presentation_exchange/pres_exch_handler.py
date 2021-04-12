@@ -8,6 +8,7 @@ apply_requirement [filter credentials] ->
 merge [return applicable credential list and descriptor_map for presentation_submission]
 returns VerifiablePresentation
 """
+import datetime
 import json
 import pytz
 import re
@@ -15,12 +16,31 @@ import re
 from dateutil.parser import parse as dateutil_parser
 from jsonpath_ng import parse
 from typing import Sequence, Optional
+from pyld import jsonld
+from pyld.jsonld import JsonLdProcessor
 from unflatten import unflatten
 from uuid import uuid4
 
+from ....vc.ld_proofs.constants import (
+    CREDENTIALS_CONTEXT_V1_URL,
+    VERIFIABLE_PRESENTATION_TYPE,
+)
 from ....core.error import BaseError
+from ....core.profile import Profile
+from ....did.did_key import DIDKey
 from ....storage.vc_holder.vc_record import VCRecord
-from ....vc.vc_ld.issue import issue
+from ....vc.vc_ld.prove import sign_presentation, create_presentation, derive_credential
+from ....vc.tests.document_loader import custom_document_loader
+from ....vc.ld_proofs.document_loader import get_default_document_loader
+from ....vc.ld_proofs.purposes.ProofPurpose import ProofPurpose
+from ....vc.ld_proofs import (
+    BbsBlsSignatureProof2020,
+    BbsBlsSignature2020,
+    Ed25519Signature2018,
+    WalletKeyPair,
+)
+from ....wallet.base import BaseWallet
+from ....wallet.crypto import KeyType
 
 from .pres_exch import (
     PresentationDefinition,
@@ -31,7 +51,6 @@ from .pres_exch import (
     SubmissionRequirements,
     Requirement,
     SchemaInputDescriptor,
-    VerifiablePresentation,
     InputDescriptorMapping,
     PresentationSubmission,
 )
@@ -41,11 +60,9 @@ class PresentationExchError(BaseError):
     """Base class for DIF Presentation Exchange related errors."""
 
 
-CREDENTIAL_JSONLD_CONTEXT = "https://www.w3.org/2018/credentials/v1"
 PRESENTATION_SUBMISSION_JSONLD_CONTEXT = (
     "https://identity.foundation/presentation-exchange/submission/v1"
 )
-VERIFIABLE_PRESENTATION_JSONLD_TYPE = "VerifiablePresentation"
 PRESENTATION_SUBMISSION_JSONLD_TYPE = "PresentationSubmission"
 
 
@@ -188,7 +205,7 @@ def contains(data: Sequence[str], e: str) -> bool:
 
 
 async def filter_constraints(
-    constraints: Constraints, credentials: Sequence[VCRecord]
+    constraints: Constraints, credentials: Sequence[VCRecord], profile: Profile
 ) -> Sequence[VCRecord]:
     """
     Return list of applicable VCRecords after applying filtering.
@@ -201,52 +218,84 @@ async def filter_constraints(
         Sequence of applicable VCRecords
 
     """
-    result = []
-    for credential in credentials:
-        if constraints.subject_issuer == "required" and not await subject_is_issuer(
-            credential=credential
-        ):
-            continue
+    async with profile.session() as session:
+        wallet = session.inject(BaseWallet)
+        bls12381g2_key_info = await wallet.create_signing_key(
+            key_type=KeyType.BLS12381G2
+        )
+        result = []
+        for credential in credentials:
+            if (
+                constraints.subject_issuer == "required"
+                and not await subject_is_issuer(credential=credential)
+            ):
+                continue
 
-        applicable = False
-        predicate = False
-        for field in constraints._fields:
-            applicable = await filter_by_field(field, credential)
-            if field.predicate == "required":
-                predicate = True
-            if applicable:
-                break
-        if not applicable:
-            continue
+            applicable = False
+            predicate = False
+            for field in constraints._fields:
+                applicable = await filter_by_field(field, credential)
+                if field.predicate == "required":
+                    predicate = True
+                if applicable:
+                    break
+            if not applicable:
+                continue
 
-        if constraints.limit_disclosure or predicate:
-            # credential_dict = json.loads(credential.value)
-            # new_credential_dict = {}
-            # new_credential_dict["@context"] = credential_dict.get("@context")
-            # new_credential_dict["type"] = credential_dict.get("type")
-            # unflatten_dict = {}
-            # for field in constraints._fields:
-            #     for path in field.paths:
-            #         jsonpath = parse(path)
-            #         match = jsonpath.find(credential_dict)
-            #         if len(match) == 0:
-            #             continue
-            #         for match_item in match:
-            #             full_path = str(match_item.full_path)
-            #             match_value = match_item.value
-            #             unflatten_dict[full_path] = match_value
-
-            # signed_new_credential_dict = await issue(
-            #     credential=new_credential_builder(new_credential_dict, unflatten_dict),
-            # )
-            # credential = VCRecord.deserialize_jsonld_cred(
-            #     json.dumps(signed_new_credential_dict)
-            # )
-            # Need mechanism to derive proof
-            #
-            raise PresentationExchError("Not yet implemented")
-        result.append(credential)
-    return result
+            if constraints.limit_disclosure:
+                credential_dict = json.loads(credential.cred_value)
+                new_credential_dict = {}
+                new_credential_dict["@context"] = credential_dict.get("@context")
+                new_credential_dict["type"] = credential_dict.get("type")
+                new_credential_dict["@explicit"] = True
+                new_credential_dict["id"] = credential_dict.get("id")
+                new_credential_dict["issuanceDate"] = credential_dict.get("issuanceDate")
+                unflatten_dict = {}
+                for field in constraints._fields:
+                    for path in field.paths:
+                        jsonpath = parse(path)
+                        match = jsonpath.find(credential_dict)
+                        if len(match) == 0:
+                            continue
+                        for match_item in match:
+                            full_path = str(match_item.full_path)
+                            if bool(re.search(pattern=r"\[[0-9]+\]", string=full_path)):
+                                full_path = full_path.replace(".[", "[")
+                            unflatten_dict[full_path] = {}
+                            explicit_key_path = None
+                            key_list = full_path.split(".")[:-1]
+                            for key in key_list:
+                                if not explicit_key_path:
+                                    explicit_key_path = key
+                                else:
+                                    explicit_key_path = explicit_key_path + "." + key
+                                unflatten_dict[explicit_key_path + ".@explicit"] = True
+                new_credential_dict = new_credential_builder(
+                    new_credential_dict, unflatten_dict
+                )
+                if "credentialSubject" not in new_credential_dict:
+                    if isinstance(credential_dict.get("credentialSubject"), list):
+                        new_credential_dict["credentialSubject"] = []
+                    elif isinstance(credential_dict.get("credentialSubject"), dict):
+                        new_credential_dict["credentialSubject"] = {}
+                # Using custom_document_loader for testing
+                signed_new_credential_dict = await derive_credential(
+                    credential=credential_dict,
+                    reveal_document=new_credential_dict,
+                    suite=BbsBlsSignatureProof2020(
+                        key_pair=WalletKeyPair(
+                            wallet=wallet,
+                            key_type=KeyType.BLS12381G2,
+                            public_key_base58=bls12381g2_key_info.verkey,
+                        ),
+                    ),
+                    document_loader=custom_document_loader,
+                )
+                credential = VCRecord.deserialize_jsonld_cred(
+                    json.dumps(signed_new_credential_dict)
+                )
+            result.append(credential)
+        return result
 
 
 def new_credential_builder(new_credential: dict, unflatten_dict: dict) -> dict:
@@ -277,7 +326,7 @@ async def filter_by_field(field: Field, credential: VCRecord) -> bool:
         bool
 
     """
-    credential_dict = json.loads(credential.value)
+    credential_dict = json.loads(credential.cred_value)
     for path in field.paths:
         jsonpath = parse(path)
         match = jsonpath.find(credential_dict)
@@ -630,6 +679,8 @@ async def filter_schema(
             )
             if schema.required and not applicable:
                 break
+            if applicable:
+                break
         if applicable:
             result.append(credential)
     return result
@@ -651,13 +702,20 @@ async def credential_match_schema(credential: VCRecord, schema_id: str) -> bool:
     for cred_schema_id in credential.schema_ids:
         if cred_schema_id == schema_id:
             return True
-    for cred_type in credential.types:
+    expanded = jsonld.expand(json.loads(credential.cred_value))
+    types = JsonLdProcessor.get_values(
+            expanded[0],
+            "@type",
+        )
+    for cred_type in types:
         if cred_type == schema_id:
             return True
     return False
 
 
-async def apply_requirements(req: Requirement, credentials: Sequence[VCRecord]) -> dict:
+async def apply_requirements(
+    req: Requirement, credentials: Sequence[VCRecord], profile: Profile
+) -> dict:
     """
     Apply Requirement.
 
@@ -680,7 +738,9 @@ async def apply_requirements(req: Requirement, credentials: Sequence[VCRecord]) 
         )
         # Filter credentials based upon path expressions specified in constraints
         filtered = await filter_constraints(
-            constraints=descriptor.constraint, credentials=filtered_by_schema
+            constraints=descriptor.constraint,
+            credentials=filtered_by_schema,
+            profile=profile,
         )
         if len(filtered) != 0:
             result[descriptor._id] = filtered
@@ -696,7 +756,7 @@ async def apply_requirements(req: Requirement, credentials: Sequence[VCRecord]) 
     # recursion logic for nested requirements
     for requirement in req.nested_req:
         # recursive call
-        result = await apply_requirements(requirement, credentials)
+        result = await apply_requirements(requirement, credentials, profile)
         if result == {}:
             continue
         # given_id_descriptors maps applicable credentials to their respective descriptor.
@@ -778,8 +838,13 @@ async def merge_nested_results(nested_result: Sequence[dict], exclude: dict) -> 
 
 
 async def create_vp(
-    credentials: Sequence[VCRecord], pd: PresentationDefinition
-) -> Optional[VerifiablePresentation]:
+    credentials: Sequence[VCRecord],
+    pd: PresentationDefinition,
+    profile: Profile,
+    challenge: str = None,
+    domain: str = None,
+    proof_purpose: ProofPurpose = None,
+) -> dict:
     """
     Create VerifiablePresentation.
 
@@ -789,39 +854,51 @@ async def create_vp(
     Return:
         VerifiablePresentation
     """
-    req = await make_requirement(
-        srs=pd.submission_requirements, descriptors=pd.input_descriptors
-    )
-    result = await apply_requirements(req=req, credentials=credentials)
-    applicable_creds, descriptor_maps = await merge(result)
-    # convert list of verifiable credentials to list to dict
-    applicable_cred_dict = []
-    for credential in applicable_creds:
-        applicable_cred_dict.append(json.loads(credential.value))
-    # submission_property
-    submission_property = PresentationSubmission(
-        _id=str(uuid4()), definition_id=pd._id, descriptor_maps=descriptor_maps
-    )
-
-    # defaultVPContext
-    default_vp_context = [
-        CREDENTIAL_JSONLD_CONTEXT,
-        PRESENTATION_SUBMISSION_JSONLD_CONTEXT,
-    ]
-    # defaultVPType
-    default_vp_type = [
-        VERIFIABLE_PRESENTATION_JSONLD_TYPE,
-        PRESENTATION_SUBMISSION_JSONLD_TYPE,
-    ]
-
-    vp = VerifiablePresentation(
-        _id=str(uuid4()),
-        contexts=default_vp_context,
-        types=default_vp_type,
-        credentials=applicable_cred_dict,
-        presentation_submission=submission_property,
-    )
-    return vp
+    async with profile.session() as session:
+        wallet = session.inject(BaseWallet)
+        ed25519_key_info = await wallet.create_signing_key(
+            key_type=KeyType.ED25519
+        )
+        ed25519_verification_method = DIDKey.from_public_key_b58(
+            ed25519_key_info.verkey, KeyType.ED25519
+        ).key_id
+        # bls12381g2_key_info = await wallet.create_signing_key(
+        #       key_type=KeyType.BLS12381G2
+        #   )
+        # bls12381g2_verification_method = DIDKey.from_public_key_b58(
+        #     bls12381g2_key_info.verkey, KeyType.BLS12381G2
+        # ).key_id
+        req = await make_requirement(
+            srs=pd.submission_requirements, descriptors=pd.input_descriptors
+        )
+        result = await apply_requirements(
+            req=req, credentials=credentials, profile=profile
+        )
+        applicable_creds, descriptor_maps = await merge(result)
+        # convert list of verifiable credentials to list to dict
+        applicable_creds_list = []
+        for credential in applicable_creds:
+            applicable_creds_list.append(json.loads(credential.cred_value))
+        # submission_property
+        submission_property = PresentationSubmission(
+            _id=str(uuid4()), definition_id=pd._id, descriptor_maps=descriptor_maps
+        )
+        vp = await create_presentation(credentials=applicable_creds_list)
+        vp["presentation_submission"] = submission_property.serialize()
+        signed_vp = await sign_presentation(
+            presentation=vp,
+            suite=Ed25519Signature2018(
+                verification_method=ed25519_verification_method,
+                key_pair=WalletKeyPair(
+                    wallet=wallet,
+                    key_type=KeyType.ED25519,
+                    public_key_base58=ed25519_key_info.verkey,
+                ),
+            ),
+            document_loader=get_default_document_loader(profile),
+            challenge=challenge,
+        )
+        return signed_vp
 
 
 async def merge(

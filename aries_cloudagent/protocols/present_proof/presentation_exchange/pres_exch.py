@@ -7,7 +7,7 @@ from marshmallow import (
     post_dump,
     ValidationError,
 )
-from typing import Sequence, Union
+from typing import Sequence
 
 from ....messaging.models.base import BaseModelSchema, BaseModel
 from ....messaging.valid import (
@@ -573,6 +573,11 @@ class ConstraintsSchema(BaseModelSchema):
             if "revoked" in data.get("statuses"):
                 if "directive" in data.get("statuses").get("revoked"):
                     data["status_revoked"] = data["statuses"]["revoked"]["directive"]
+        if "limit_disclosure" in data:
+            if data.get("limit_disclosure") == "required":
+                data["limit_disclosure"] = True
+            else:
+                data["limit_disclosure"] = False
         return data
 
     @post_dump
@@ -903,92 +908,3 @@ class StrOrDictField(fields.Field):
             return value
         else:
             raise ValidationError("Field should be str or dict")
-
-
-class VerifiablePresentation(BaseModel):
-    """Single VerifiablePresentation object."""
-
-    class Meta:
-        """VerifiablePresentation metadata."""
-
-        schema_class = "VerifiablePresentationSchema"
-
-    def __init__(
-        self,
-        *,
-        _id: str = None,
-        contexts: Sequence[Union[str, dict]] = None,
-        types: Sequence[str] = None,
-        credentials: Sequence[dict] = None,
-        holder: str = None,
-        proofs: Sequence[dict] = None,
-        tags: dict = None,
-        presentation_submission: PresentationSubmission = None,
-    ):
-        """Initialize VerifiablePresentation."""
-        self._id = _id
-        self.contexts = contexts
-        self.types = types
-        self.credentials = credentials
-        self.holder = holder
-        self.proofs = proofs
-        self.tags = tags
-        self.presentation_submission = presentation_submission
-
-
-class VerifiablePresentationSchema(BaseModelSchema):
-    """Single Field Schema."""
-
-    class Meta:
-        """VerifiablePresentationSchema metadata."""
-
-        model_class = VerifiablePresentation
-        unknown = EXCLUDE
-
-    _id = fields.Str(
-        description="ID",
-        required=False,
-        **UUID4,
-        data_key="id",
-    )
-    contexts = fields.List(
-        StrOrDictField(),
-        data_key="@context",
-    )
-    types = fields.List(
-        fields.Str(description="Types", required=False),
-        data_key="type",
-    )
-    credentials = fields.List(
-        fields.Dict(description="Credentials", required=False),
-        data_key="verifiableCredential",
-    )
-    holder = fields.Str(
-        description="Holder",
-        required=False,
-        data_key="holder",
-    )
-    proofs = fields.List(
-        fields.Dict(description="Proofs", required=False),
-        data_key="proof",
-    )
-    tags = fields.Dict(description="Tags", required=False)
-    presentation_submission = fields.Nested(
-        PresentationSubmissionSchema, data_key="presentation_submission"
-    )
-
-    @pre_load
-    def extract_info(self, data, **kwargs):
-        """Support deserialization of W3C spec VP."""
-        if "proof" in data:
-            if type(data.get("proof")) is not list:
-                data["proof"] = [data.get("proof")]
-
-        return data
-
-    @post_dump
-    def reformat_data(self, data, **kwargs):
-        """Support serialization to W3C spec VP and remove id."""
-        if "id" in data:
-            del data["id"]
-        return data

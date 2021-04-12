@@ -1,42 +1,47 @@
+import datetime
 import json
 
 from .....storage.vc_holder.vc_record import VCRecord
+from .....resolver.did_resolver_registry import DIDResolverRegistry
+from .....resolver.did_resolver import DIDResolver
 
 from ..pres_exch import PresentationDefinition
+from ..pres_exch_handler import PresentationExchError
+
+from .....core.in_memory import InMemoryProfile
+from .....did.did_key import DIDKey
+from .....vc.vc_ld.issue import issue
+from .....vc.tests.document_loader import custom_document_loader
+from .....vc.ld_proofs import (
+    BbsBlsSignatureProof2020,
+    BbsBlsSignature2020,
+    Ed25519Signature2018,
+    WalletKeyPair,
+)
+from .....wallet.base import BaseWallet
+from .....wallet.crypto import KeyType
+from .....wallet.util import b58_to_bytes
+from .....wallet.in_memory import InMemoryWallet
 
 cred_json_1 = """
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/bbs/v1",
     "https://www.w3.org/2018/credentials/examples/v1"
   ],
   "id": "http://example.edu/credentials/1872",
-  "type": ["VerifiableCredential", "AlumniCredential"],
-  "issuer": "https://example.edu/issuers/565049",
-  "issuanceDate": "2010-01-01T19:73:24Z",
+  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+  "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+  },
+  "issuanceDate": "2010-01-01T19:53:24Z",
   "credentialSubject": {
-    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-    "alumniOf": {
-      "id": "did:example:c276e12ec21ebfeb1f712ebc6f1",
-      "name": [{
-        "value": "Example University",
-        "lang": "en"
-      }, {
-        "value": "Exemple d'Université",
-        "lang": "fr"
-      }]
+    "id": "did:example:123",
+    "degree": {
+      "type": "BachelorDegree",
+      "name": "Bachelor of Science and Arts"
     }
-  },
-  "credentialSchema": {
-    "id": "https://eu.com/claims/DriversLicense.json",
-    "type": "JsonSchemaValidator2018"
-  },
-  "proof": {
-    "type": "RsaSignature2018",
-    "created": "2017-06-18T21:19:10Z",
-    "proofPurpose": "assertionMethod",
-    "verificationMethod": "https://example.edu/issuers/keys/1",
-    "jws": "eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5XsITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUcX16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtjPAYuNzVBAh4vGHSrQyHUdBBPM"
   }
 }
 """
@@ -45,35 +50,21 @@ cred_json_2 = """
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/bbs/v1",
     "https://www.w3.org/2018/credentials/examples/v1"
   ],
   "id": "http://example.edu/credentials/1873",
-  "type": ["VerifiableCredential", "AlumniCredential"],
-  "issuer": "https://example.edu/issuers/565050",
-  "issuanceDate": "2010-01-01T19:73:24Z",
+  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+  "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+  },
+  "issuanceDate": "2010-01-01T19:53:24Z",
   "credentialSubject": {
-    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-    "alumniOf": {
-      "id": "did:example:c276e12ec21ebfeb1f712ebc6f1",
-      "name": [{
-        "value": "Example University",
-        "lang": "en"
-      }, {
-        "value": "Exemple d'Université",
-        "lang": "fr"
-      }]
+    "id": "did:example:456",
+    "degree": {
+      "type": "BachelorDegree",
+      "name": "Bachelor of Science and Arts"
     }
-  },
-  "credentialSchema": {
-    "id": "https://eu.com/claims/DriversLicense.json",
-    "type": "JsonSchemaValidator2018"
-  },
-  "proof": {
-    "type": "RsaSignature2018",
-    "created": "2017-06-18T21:19:10Z",
-    "proofPurpose": "assertionMethod",
-    "verificationMethod": "https://example.edu/issuers/keys/1",
-    "jws": "eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5XsITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUcX16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtjPAYuNzVBAh4vGHSrQyHUdBBPM"
   }
 }
 """
@@ -82,62 +73,42 @@ cred_json_3 = """
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/bbs/v1",
     "https://www.w3.org/2018/credentials/examples/v1"
   ],
   "id": "http://example.edu/credentials/1874",
-  "type": ["VerifiableCredential", "AlumniCredential"],
-  "issuer": "https://example.edu/issuers/565051",
-  "issuanceDate": "2010-01-01T19:73:24Z",
+  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+  "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+  },
+  "issuanceDate": "2010-01-01T19:53:24Z",
   "credentialSubject": {
-    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-    "alumniOf": {
-      "id": "did:example:c276e12ec21ebfeb1f712ebc6f1",
-      "name": [{
-        "value": "Example University",
-        "lang": "en"
-      }, {
-        "value": "Exemple d'Université",
-        "lang": "fr"
-      }]
+    "id": "did:example:789",
+    "degree": {
+      "type": "BachelorDegree",
+      "name": "Bachelor of Science and Arts"
     }
-  },
-  "credentialSchema": {
-    "id": "https://eu.com/claims/DriversLicense.json",
-    "type": "JsonSchemaValidator2018"
-  },
-  "proof": {
-    "type": "RsaSignature2018",
-    "created": "2017-06-18T21:19:10Z",
-    "proofPurpose": "assertionMethod",
-    "verificationMethod": "https://example.edu/issuers/keys/1",
-    "jws": "eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5XsITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUcX16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtjPAYuNzVBAh4vGHSrQyHUdBBPM"
   }
 }
 """
 cred_json_4 = """
     {
-      "vc": {
-        "@context": "https://www.w3.org/2018/credentials/v1",
-        "id": "https://eu.com/claims/DriversLicense",
-        "type": ["EUDriversLicense"],
-        "issuer": "did:example:123",
-        "issuanceDate": "2010-01-01T19:73:24Z",
-        "credentialSchema": {
-          "id": "https://eu.com/claims/DriversLicense.json",
-          "type": "JsonSchemaValidator2018"
-        },
-        "credentialSubject": {
-          "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-          "accounts": [
-            {
-              "id": "1234567890",
-              "route": "DE-9876543210"
-            },
-            {
-              "id": "2457913570",
-              "route": "DE-0753197542"
-            }
-          ]
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/security/bbs/v1",
+        "https://www.w3.org/2018/credentials/examples/v1"
+      ],
+      "id": "http://example.edu/credentials/1875",
+      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+      "issuer": {
+          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+      },
+      "issuanceDate": "2010-01-01T19:53:24Z",
+      "credentialSubject": {
+        "id": "did:example:321",
+        "degree": {
+          "type": "BachelorDegree",
+          "name": "Bachelor of Science and Arts"
         }
       }
     }
@@ -145,54 +116,45 @@ cred_json_4 = """
 
 cred_json_5 = """
     {
-      "@context": "https://www.w3.org/2018/credentials/v1",
-      "id": "https://business-standards.org/schemas/employment-history.json",
-      "type": ["VerifiableCredential", "GenericEmploymentCredential"],
-      "issuer": "did:foo:123",
-      "issuanceDate": "2010-01-01T19:73:24Z",
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/security/bbs/v1",
+        "https://www.w3.org/2018/credentials/examples/v1"
+      ],
+      "id": "http://example.edu/credentials/1876",
+      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+      "issuer": {
+          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+      },      
+      "issuanceDate": "2010-01-01T19:53:24Z",
       "credentialSubject": {
-        "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-        "dob": "07/13/80",
-        "test": 2
-      },
-      "credentialSchema": {
-        "id": "https://eu.com/claims/DriversLicense.json",
-        "type": "JsonSchemaValidator2018"
-      },
-      "proof": {
-        "type": "EcdsaSecp256k1VerificationKey2019",
-        "created": "2017-06-18T21:19:10Z",
-        "proofPurpose": "assertionMethod",
-        "verificationMethod": "https://example.edu/issuers/keys/1",
-        "jws": "..."
+        "id": "did:example:654",
+        "degree": {
+          "type": "BachelorDegree",
+          "name": "Bachelor of Science and Arts"
+        }
       }
     }
 """
 cred_json_6 = """
     {
-      "@context": "https://www.w3.org/2018/credentials/v1",
-      "id": "https://eu.com/claims/DriversLicense2",
-      "type": ["EUDriversLicense"],
-      "issuer": "did:foo:123",
-      "issuanceDate": "2010-01-01T19:73:24Z",
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/security/bbs/v1",
+        "https://www.w3.org/2018/credentials/examples/v1"
+      ],
+      "id": "http://example.edu/credentials/1877",
+      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+      "issuer": {
+          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+      },      
+      "issuanceDate": "2010-01-01T19:53:24Z",
       "credentialSubject": {
-        "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-        "test": 2.0,
-        "license": {
-          "number": "34DGE352",
-          "dob": "07/13/80"
+        "id": "did:example:987",
+        "degree": {
+          "type": "BachelorDegree",
+          "name": "Bachelor of Science and Arts"
         }
-      },
-      "credentialSchema": {
-        "id": "https://eu.com/claims/DriversLicense.json",
-        "type": "JsonSchemaValidator2018"
-      },
-      "proof": {
-        "type": "RsaSignature2018",
-        "created": "2017-06-18T21:19:10Z",
-        "proofPurpose": "assertionMethod",
-        "verificationMethod": "https://example.edu/issuers/keys/1",
-        "jws": "..."
       }
     }
 """
@@ -230,21 +192,20 @@ pres_exch_nested_srs = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.issuer",
-              "$.vc.issuer",
-              "$.iss"
+              "$.issuer.id",
+              "$.vc.issuer.id"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["https://example.edu/issuers/565049", "https://example.edu/issuers/565050", "https://example.edu/issuers/565051"]
+              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
             }
           }
         ]
@@ -258,21 +219,20 @@ pres_exch_nested_srs = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.credentialSubject.dob",
-              "$.vc.credentialSubject.dob",
-              "$.credentialSubject.license.dob"
+              "$.issuanceDate",
+              "$.vc.issuanceDate"
             ],
             "filter":{
               "type":"string",
               "format":"date",
-              "minimum":"1979-5-16"
+              "minimum":"2009-5-16"
             }
           }
         ]
@@ -308,21 +268,20 @@ pres_exch_multiple_srs_not_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.issuer",
-              "$.vc.issuer",
-              "$.iss"
+              "$.issuer.id",
+              "$.vc.issuer.id"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["https://example.edu/issuers/565049", "https://example.edu/issuers/565050", "https://example.edu/issuers/565051"]
+              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"]
             }
           }
         ]
@@ -336,21 +295,20 @@ pres_exch_multiple_srs_not_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.credentialSubject.dob",
-              "$.vc.credentialSubject.dob",
-              "$.credentialSubject.license.dob"
+              "$.issuanceDate",
+              "$.vc.issuanceDate"
             ],
             "filter":{
               "type":"string",
               "format":"date",
-              "exclusiveMax":"1999-5-16"
+              "exclusiveMax":"2020-5-16"
             }
           }
         ]
@@ -385,20 +343,19 @@ pres_exch_multiple_srs_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.issuer",
-              "$.vc.issuer",
-              "$.iss"
+              "$.issuer.id",
+              "$.vc.issuer.id"
             ],
             "filter":{
               "type":"string",
-              "pattern": "did:foo:123|did:example:123"
+              "pattern": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
             }
           }
         ]
@@ -412,21 +369,20 @@ pres_exch_multiple_srs_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.credentialSubject.dob",
-              "$.vc.credentialSubject.dob",
-              "$.credentialSubject.license.dob"
+              "$.issuanceDate",
+              "$.vc.issuanceDate"
             ],
             "filter":{
               "type":"string",
               "format":"date",
-              "maximum":"1999-5-16"
+              "maximum":"2012-5-16"
             }
           }
         ]
@@ -436,7 +392,7 @@ pres_exch_multiple_srs_met = """
 }
 """
 
-pres_exch_datetime_minimum_not_met = """
+pres_exch_datetime_minimum_met = """
 {
   "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
   "submission_requirements":[
@@ -456,21 +412,20 @@ pres_exch_datetime_minimum_not_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.issuer",
-              "$.vc.issuer",
-              "$.iss"
+              "$.issuer.id",
+              "$.vc.issuer.id"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["https://example.edu/issuers/565049", "https://example.edu/issuers/565050", "https://example.edu/issuers/565051", "did:foo:123"]
+              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"]
             }
           }
         ]
@@ -484,16 +439,15 @@ pres_exch_datetime_minimum_not_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json"
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.credentialSubject.dob",
-              "$.vc.credentialSubject.dob",
-              "$.credentialSubject.license.dob"
+              "$.issuanceDate",
+              "$.vc.issuanceDate"
             ],
             "filter":{
               "type":"string",
@@ -553,16 +507,15 @@ pres_exch_number_const_met = """
       ],
       "schema":[
         {
-          "uri":"https://eu.com/claims/DriversLicense.json",
-          "required": true
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
         }
       ],
       "constraints":{
         "fields":[
           {
             "path":[
-              "$.credentialSubject.test",
-              "$.vc.credentialSubject.test",
+              "$.credentialSubject.degree.test",
+              "$.vc.credentialSubject.degree.test",
               "$.test"
             ],
             "purpose":"The claim must be from one of the specified issuers",
@@ -577,30 +530,79 @@ pres_exch_number_const_met = """
 }
 """
 
+def make_profile():
+    profile = InMemoryProfile.test_profile()
+    context = profile.context
+    did_resolver_registry = DIDResolverRegistry()
+    context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
+    context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
+    return profile
 
-def get_test_data():
-    creds_json_list = []
-    creds_json_list.append(cred_json_1)
-    creds_json_list.append(cred_json_2)
-    creds_json_list.append(cred_json_3)
-    creds_json_list.append(cred_json_4)
-    creds_json_list.append(cred_json_5)
-    creds_json_list.append(cred_json_6)
+async def get_test_data():
+    profile = make_profile()
+    wallet = InMemoryWallet(profile)
+    # async with profile.session() as session:
+    #   wallet = session.inject(BaseWallet)
+    bls12381g2_key_info = await wallet.create_signing_key(
+      key_type=KeyType.BLS12381G2
+    )
+    bls12381g2_verification_method = DIDKey.from_public_key_b58(
+        bls12381g2_key_info.verkey, KeyType.BLS12381G2
+    ).key_id
+    
+    signature_issuer_suite = BbsBlsSignature2020(
+        verification_method=bls12381g2_verification_method,
+        key_pair=WalletKeyPair(
+            wallet=wallet,
+            key_type=KeyType.BLS12381G2,
+            public_key_base58=bls12381g2_key_info.verkey,
+        )
+    )
+
+    creds_json_list = [
+        json.dumps(await issue(credential=json.loads(cred_json_1), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+        json.dumps(await issue(credential=json.loads(cred_json_2), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+        json.dumps(await issue(credential=json.loads(cred_json_3), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+        json.dumps(await issue(credential=json.loads(cred_json_4), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+        json.dumps(await issue(credential=json.loads(cred_json_5), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+        json.dumps(await issue(credential=json.loads(cred_json_6), 
+                    suite=signature_issuer_suite, 
+                    document_loader=custom_document_loader
+              )),
+    ]
 
     vc_record_list = []
-    for tmp_cred in creds_json_list:
-        vc_record_list.append(VCRecord.deserialize_jsonld_cred(tmp_cred))
-
-    pd_json_list = []
-    pd_json_list.append((pres_exch_nested_srs, 5))
-    pd_json_list.append((pres_exch_multiple_srs_not_met, 0))
-    pd_json_list.append((pres_exch_multiple_srs_met, 2))
-    pd_json_list.append((pres_exch_datetime_minimum_not_met, 0))
-    pd_json_list.append((pres_exch_number_const_met, 2))
+    for cred in creds_json_list:
+        vc_record_list.append(VCRecord.deserialize_jsonld_cred(cred))
+    pd_json_list = [
+        (pres_exch_multiple_srs_not_met, 0),
+        (pres_exch_multiple_srs_met, 6),
+        (pres_exch_datetime_minimum_met, 6),
+        (pres_exch_number_const_met, 0),
+        (pres_exch_nested_srs, 6),
+    ]
 
     pd_list = []
-    for tmp_pd in pd_json_list:
+    for pd in pd_json_list:
         pd_list.append(
-            (PresentationDefinition.deserialize(json.loads(tmp_pd[0])), tmp_pd[1])
+            (
+                PresentationDefinition.deserialize(json.loads(pd[0])),
+                pd[1],
+            )
         )
     return (vc_record_list, pd_list)
