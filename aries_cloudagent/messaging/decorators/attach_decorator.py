@@ -23,6 +23,8 @@ from ...wallet.util import (
     str_to_b64,
     unpad,
 )
+from ...wallet.crypto import KeyType
+from ...did.did_key import DIDKey
 from ..models.base import BaseModel, BaseModelError, BaseModelSchema
 from ..valid import (
     BASE64,
@@ -32,9 +34,6 @@ from ..valid import (
     SHA256,
     UUIDFour,
 )
-
-MULTIBASE_B58_BTC = "z"
-MULTICODEC_ED25519_PUB = b"\xed"
 
 
 class AttachDecoratorDataJWSHeader(BaseModel):
@@ -198,19 +197,17 @@ class AttachDecoratorDataJWSSchema(BaseModelSchema):
 def did_key(verkey: str) -> str:
     """Qualify verkey into DID key if need be."""
 
-    if verkey.startswith(f"did:key:{MULTIBASE_B58_BTC}"):
+    if verkey.startswith("did:key:"):
         return verkey
 
-    return f"did:key:{MULTIBASE_B58_BTC}" + bytes_to_b58(
-        MULTICODEC_ED25519_PUB + b58_to_bytes(verkey)
-    )
+    return DIDKey.from_public_key_b58(verkey, KeyType.ED25519).did
 
 
 def raw_key(verkey: str) -> str:
     """Strip qualified key to raw key if need be."""
 
-    if verkey.startswith(f"did:key:{MULTIBASE_B58_BTC}"):
-        return bytes_to_b58(b58_to_bytes(verkey[9:])[1:])
+    if verkey.startswith("did:key:"):
+        return DIDKey.from_did(verkey).public_key_b58
 
     return verkey
 
@@ -437,7 +434,9 @@ class AttachDecoratorData(BaseModel):
             sign_input = (b64_protected + "." + b64_payload).encode("ascii")
             b_sig = b64_to_bytes(b64_sig, urlsafe=True)
             verkey = bytes_to_b58(b64_to_bytes(protected["jwk"]["x"], urlsafe=True))
-            if not await wallet.verify_message(sign_input, b_sig, verkey):
+            if not await wallet.verify_message(
+                sign_input, b_sig, verkey, KeyType.ED25519
+            ):
                 return False
         return True
 

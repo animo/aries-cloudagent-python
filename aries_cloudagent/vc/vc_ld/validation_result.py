@@ -1,4 +1,4 @@
-"""Presentation verification and validation result classes"""
+"""Presentation verification and validation result classes."""
 
 from typing import List
 
@@ -6,7 +6,7 @@ from ..ld_proofs import DocumentVerificationResult
 
 
 class PresentationVerificationResult:
-    """Presentation verification result class"""
+    """Presentation verification result class."""
 
     def __init__(
         self,
@@ -16,11 +16,22 @@ class PresentationVerificationResult:
         credential_results: List[DocumentVerificationResult] = None,
         errors: List[Exception] = None,
     ) -> None:
-        """Create new PresentationVerificationResult instance"""
+        """Create new PresentationVerificationResult instance."""
         self.verified = verified
         self.presentation_result = presentation_result
         self.credential_results = credential_results
         self.errors = errors
+
+    def __repr__(self) -> str:
+        """
+        Return a human readable representation of this class.
+
+        Returns:
+            A human readable string for this class
+
+        """
+        items = ("{}={}".format(k, repr(v)) for k, v in self.__dict__.items())
+        return "<{}({})>".format(self.__class__.__name__, ", ".join(items))
 
     def __eq__(self, other: object) -> bool:
         """Comparison between presentation verification results."""

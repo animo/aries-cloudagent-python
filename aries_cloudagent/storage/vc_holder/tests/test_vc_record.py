@@ -7,30 +7,35 @@ from ..vc_record import VCRecord
 
 sample_json_cred_1 = """
     {
-      "vc": {
-        "@context": "https://www.w3.org/2018/credentials/v1",
+        "@context": ["https://www.w3.org/2018/credentials/v1"],
         "id": "https://eu.com/claims/DriversLicense",
         "type": ["EUDriversLicense"],
         "issuer": "did:example:123",
         "issuanceDate": "2010-01-01T19:73:24Z",
         "credentialSchema": {
-          "id": "https://eu.com/claims/DriversLicense.json",
-          "type": "JsonSchemaValidator2018"
+            "id": "https://eu.com/claims/DriversLicense.json",
+            "type": "JsonSchemaValidator2018"
         },
         "credentialSubject": {
-          "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-          "accounts": [
+            "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
+            "accounts": [
             {
-              "id": "1234567890",
-              "route": "DE-9876543210"
+                "id": "1234567890",
+                "route": "DE-9876543210"
             },
             {
-              "id": "2457913570",
-              "route": "DE-0753197542"
+                "id": "2457913570",
+                "route": "DE-0753197542"
             }
-          ]
+            ]
+        },
+        "proof": {
+            "type": "RsaSignature2018",
+            "created": "2017-06-18T21:19:10Z",
+            "proofPurpose": "assertionMethod",
+            "verificationMethod": "https://example.edu/issuers/keys/1",
+            "jws": "eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5XsITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUcX16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtjPAYuNzVBAh4vGHSrQyHUdBBPM"
         }
-      }
     }
 """
 sample_json_cred_2 = """
@@ -88,7 +93,7 @@ sample_json_cred_3 = """
         },
         "issuanceDate": "2010-01-01T19:73:24Z",
         "credentialSchema": "https://example.org/examples/degree.json",
-        "credentialSubject": "did:example:ebfeb1f712ebc6f1c276e12ec21",
+        "credentialSubject": { "id": "did:example:ebfeb1f712ebc6f1c276e12ec21" },
         "proof": {
             "type": "RsaSignature2018",
             "created": "2017-06-18T21:19:10Z",
@@ -109,6 +114,7 @@ TYPES = [
 ISSUER_ID = "https://example.edu/issuers/14"
 SUBJECT_IDS = ["did:example:ebfeb1f712ebc6f1c276e12ec21"]
 SCHEMA_IDS = ["https://example.org/examples/degree.json"]
+PROOF_TYPES = ["RsaSignature2018"]
 GIVEN_ID = "http://example.edu/credentials/3732"
 CRED_TAGS = {"tag": "value"}
 CRED_VALUE = {"...": "..."}
@@ -121,6 +127,7 @@ def test_record() -> VCRecord:
         schema_ids=SCHEMA_IDS,
         issuer_id=ISSUER_ID,
         subject_ids=SUBJECT_IDS,
+        proof_types=PROOF_TYPES,
         cred_value=CRED_VALUE,
         given_id=GIVEN_ID,
         cred_tags=CRED_TAGS,
@@ -135,6 +142,7 @@ class TestVCRecord(AsyncTestCase):
         assert record.types == set(TYPES)
         assert record.schema_ids == set(SCHEMA_IDS)
         assert record.subject_ids == set(SUBJECT_IDS)
+        assert record.proof_types == set(PROOF_TYPES)
         assert record.issuer_id == ISSUER_ID
         assert record.given_id == GIVEN_ID
         assert record.record_id and type(record.record_id) is str

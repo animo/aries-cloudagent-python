@@ -4,10 +4,9 @@ import json
 
 from pyld import jsonld
 from pyld.jsonld import JsonLdProcessor
-from typing import Sequence
 import logging
 
-from typing import Mapping, Sequence, Sequence
+from typing import Mapping, Sequence
 from uuid import uuid4
 
 from marshmallow import EXCLUDE, fields
@@ -34,6 +33,7 @@ class VCRecord(BaseModel):
         issuer_id: str,  # issuer ID is required by spec
         subject_ids: Sequence[str],  # one or more subject IDs may be present
         schema_ids: Sequence[str],  # one or more credential schema IDs may be present
+        proof_types: Sequence[str],  # one or more proof types may be present
         cred_value: Mapping,  # the credential value as a JSON-serializable mapping
         given_id: str = None,  # value of the credential 'id' property, if any
         cred_tags: Mapping = None,  # tags for retrieval (derived from attribute values)
@@ -46,6 +46,7 @@ class VCRecord(BaseModel):
         self.schema_ids = set(schema_ids) if schema_ids else set()
         self.issuer_id = issuer_id
         self.subject_ids = set(subject_ids) if subject_ids else set()
+        self.proof_types = set(proof_types) if proof_types else set()
         self.cred_value = cred_value
         self.given_id = given_id
         self.cred_tags = cred_tags or {}
@@ -80,6 +81,7 @@ class VCRecord(BaseModel):
             and other.subject_ids == self.subject_ids
             and other.schema_ids == self.schema_ids
             and other.issuer_id == self.issuer_id
+            and other.proof_types == self.proof_types
             and other.given_id == self.given_id
             and other.record_id == self.record_id
             and other.cred_tags == self.cred_tags
@@ -174,6 +176,11 @@ class VCRecordSchema(BaseModelSchema):
         fields.Str(
             description="Subject identifier",
             example="did:example:ebfeb1f712ebc6f1c276e12ec21",
+        )
+    )
+    proof_types = fields.List(
+        fields.Str(
+            description="Signature suite used for proof", example="Ed25519Signature2018"
         )
     )
 

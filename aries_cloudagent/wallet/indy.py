@@ -2,7 +2,7 @@
 
 import json
 
-from typing import Sequence
+from typing import List, Sequence, Tuple, Union
 
 import indy.anoncreds
 import indy.did
@@ -19,9 +19,19 @@ from ..ledger.error import LedgerConfigError
 
 from ..did.did_key import DIDKey
 from .base import BaseWallet, KeyInfo, DIDInfo
-from .crypto import DIDMethod, KeyType, validate_seed
+from .crypto import (
+    DIDMethod,
+    KeyType,
+    create_keypair,
+    sign_message,
+    validate_seed,
+    verify_signed_message,
+)
+from .key_pair import KeyPairStorageManager
+from ..storage.indy import IndySdkStorage
+from ..storage.error import StorageDuplicateError, StorageNotFoundError
 from .error import WalletError, WalletDuplicateError, WalletNotFoundError
-from .util import bytes_to_b58, bytes_to_b64
+from .util import b58_to_bytes, bytes_to_b58, bytes_to_b64
 
 
 class IndySdkWallet(BaseWallet):
@@ -31,22 +41,91 @@ class IndySdkWallet(BaseWallet):
         """Create a new IndySdkWallet instance."""
         self.opened = opened
 
-    def __did_info_from_info(self, info):
+    def __did_info_from_indy_info(self, info):
         metadata = json.loads(info["metadata"]) if info["metadata"] else {}
-        did = info["did"]
+        did: str = info["did"]
         verkey = info["verkey"]
 
-        if DIDMethod.from_metadata(metadata) == DIDMethod.KEY:
-            did = DIDKey.from_public_key_b58(info["verkey"], KeyType.ED25519).did
+        method = DIDMethod.KEY if did.startswith("did:key") else DIDMethod.SOV
+        key_type = KeyType.ED25519
+
+        if method == DIDMethod.KEY:
+            did = DIDKey.from_public_key_b58(info["verkey"], key_type).did
 
         return DIDInfo(
-            did=did,
-            verkey=verkey,
+            did=did, verkey=verkey, metadata=metadata, method=method, key_type=key_type
+        )
+
+    def __did_info_from_key_pair_info(self, info: dict):
+        metadata = info["metadata"]
+        verkey = info["verkey"]
+
+        # this needs to change if other did methods are added
+        method = DIDMethod.from_method(info["metadata"].get("method", "key"))
+        key_type = KeyType.from_key_type(info["key_type"])
+
+        if method == DIDMethod.KEY:
+            did = DIDKey.from_public_key_b58(info["verkey"], key_type).did
+
+        return DIDInfo(
+            did=did, verkey=verkey, metadata=metadata, method=method, key_type=key_type
+        )
+
+    async def __create_indy_signing_key(
+        self, key_type: KeyType, metadata: dict, seed: str = None
+    ) -> str:
+        if key_type != KeyType.ED25519:
+            raise WalletError(f"Unsupported key type: {key_type.key_type}")
+
+        args = {}
+        if seed:
+            args["seed"] = bytes_to_b64(validate_seed(seed))
+        try:
+            verkey = await indy.crypto.create_key(self.opened.handle, json.dumps(args))
+        except IndyError as x_indy:
+            if x_indy.error_code == ErrorCode.WalletItemAlreadyExists:
+                raise WalletDuplicateError("Verification key already present in wallet")
+            raise IndyErrorHandler.wrap_error(
+                x_indy, "Wallet {} error".format(self.opened.name), WalletError
+            ) from x_indy
+
+        await indy.crypto.set_key_metadata(
+            self.opened.handle, verkey, json.dumps(metadata)
+        )
+
+        return verkey
+
+    async def __create_keypair_signing_key(
+        self, key_type: KeyType, metadata: dict, seed: str = None
+    ) -> str:
+        if key_type != KeyType.BLS12381G2:
+            raise WalletError(f"Unsupported key type: {key_type.key_type}")
+
+        public_key, secret_key = create_keypair(key_type, validate_seed(seed))
+        verkey = bytes_to_b58(public_key)
+        key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+
+        # Check if key already exists
+        try:
+            key_info = await self.__get_keypair_signing_key(verkey)
+            if key_info:
+                raise WalletDuplicateError("Verification key already present in wallet")
+        except WalletNotFoundError:
+            # If we can't find the key, it means it doesn't exist already
+            # this is good
+            pass
+
+        await key_pair_mgr.store_key_pair(
+            public_key=public_key,
+            secret_key=secret_key,
+            key_type=key_type,
             metadata=metadata,
         )
 
+        return verkey
+
     async def create_signing_key(
-        self, seed: str = None, metadata: dict = None
+        self, key_type: KeyType, seed: str = None, metadata: dict = None
     ) -> KeyInfo:
         """
         Create a new public/private signing keypair.
@@ -63,26 +142,54 @@ class IndySdkWallet(BaseWallet):
             WalletError: If there is a libindy error
 
         """
-        args = {}
-        if seed:
-            args["seed"] = bytes_to_b64(validate_seed(seed))
-        try:
-            verkey = await indy.crypto.create_key(self.opened.handle, json.dumps(args))
-        except IndyError as x_indy:
-            if x_indy.error_code == ErrorCode.WalletItemAlreadyExists:
-                raise WalletDuplicateError("Verification key already present in wallet")
-            raise IndyErrorHandler.wrap_error(
-                x_indy, "Wallet {} error".format(self.opened.name), WalletError
-            ) from x_indy
 
         # must save metadata to allow identity check
         # otherwise get_key_metadata just returns WalletItemNotFound
         if metadata is None:
             metadata = {}
-        await indy.crypto.set_key_metadata(
-            self.opened.handle, verkey, json.dumps(metadata)
-        )
-        return KeyInfo(verkey, metadata)
+
+        # All ed25519 keys are handled by indy
+        if key_type == KeyType.ED25519:
+            verkey = await self.__create_indy_signing_key(key_type, metadata, seed)
+        # All other (only bls12381g2 atm) are handled outside of indy
+        else:
+            verkey = await self.__create_keypair_signing_key(key_type, metadata, seed)
+
+        return KeyInfo(verkey=verkey, metadata=metadata, key_type=key_type)
+
+    async def __get_indy_signing_key(self, verkey: str) -> KeyInfo:
+        try:
+            metadata = await indy.crypto.get_key_metadata(self.opened.handle, verkey)
+
+            return KeyInfo(
+                verkey=verkey,
+                metadata=json.loads(metadata) if metadata else {},
+                key_type=KeyType.ED25519,
+            )
+        except IndyError as x_indy:
+            if x_indy.error_code == ErrorCode.WalletItemNotFound:
+                raise WalletNotFoundError(f"Unknown key: {verkey}")
+            # # If we resolve a key that is not 32 bytes we get CommonInvalidStructure
+            # elif x_indy.error_code == ErrorCode.CommonInvalidStructure:
+            #     raise WalletNotFoundError(f"Unknown key: {verkey}")
+            else:
+                raise IndyErrorHandler.wrap_error(
+                    x_indy, "Wallet {} error".format(self.opened.name), WalletError
+                ) from x_indy
+
+    async def __get_keypair_signing_key(self, verkey: str) -> KeyInfo:
+        try:
+            key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+            key_pair = await key_pair_mgr.get_key_pair(verkey)
+            return KeyInfo(
+                verkey=verkey,
+                metadata=key_pair["metadata"],
+                key_type=KeyType.from_key_type(key_pair["key_type"]),
+            )
+        except (StorageNotFoundError):
+            raise WalletNotFoundError(f"Unknown key: {verkey}")
+        except (StorageDuplicateError):
+            raise WalletDuplicateError(f"Multiple keys exist for verkey: {verkey}")
 
     async def get_signing_key(self, verkey: str) -> KeyInfo:
         """
@@ -99,16 +206,18 @@ class IndySdkWallet(BaseWallet):
             WalletError: If there is a libindy error
 
         """
-        try:
-            metadata = await indy.crypto.get_key_metadata(self.opened.handle, verkey)
-        except IndyError as x_indy:
-            if x_indy.error_code == ErrorCode.WalletItemNotFound:
-                raise WalletNotFoundError("Unknown key: {}".format(verkey))
-            else:
-                raise IndyErrorHandler.wrap_error(
-                    x_indy, "Wallet {} error".format(self.opened.name), WalletError
-                ) from x_indy
-        return KeyInfo(verkey, json.loads(metadata) if metadata else {})
+        if not verkey:
+            raise WalletError("Missing required input parameter: verkey")
+
+        # Only try to load indy signing key if the verkey is 32 bytes
+        # this may change if indy is going to support verkeys of different byte length
+        if len(b58_to_bytes(verkey)) == 32:
+            try:
+                return await self.__get_indy_signing_key(verkey)
+            except WalletNotFoundError:
+                return await self.__get_keypair_signing_key(verkey)
+        else:
+            return await self.__get_keypair_signing_key(verkey)
 
     async def replace_signing_key_metadata(self, verkey: str, metadata: dict):
         """
@@ -122,11 +231,23 @@ class IndySdkWallet(BaseWallet):
             WalletNotFoundError: if no keypair is associated with the verification key
 
         """
-        meta_json = json.dumps(metadata or {})
-        await self.get_signing_key(verkey)  # throw exception if key is undefined
-        await indy.crypto.set_key_metadata(self.opened.handle, verkey, meta_json)
+        metadata = metadata or {}
 
-    # TODO: rotate not possible for did key
+        # throw exception if key is undefined
+        key_info = await self.get_signing_key(verkey)
+
+        # All ed25519 keys are handled by indy
+        if key_info.key_type == KeyType.ED25519:
+            await indy.crypto.set_key_metadata(
+                self.opened.handle, verkey, json.dumps(metadata)
+            )
+        # All other (only bls12381g2 atm) are handled outside of indy
+        else:
+            key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+            await key_pair_mgr.update_key_pair_metadata(
+                verkey=key_info.verkey, metadata=metadata
+            )
+
     async def rotate_did_keypair_start(self, did: str, next_seed: str = None) -> str:
         """
         Begin key rotation for DID that wallet owns: generate new keypair.
@@ -139,6 +260,13 @@ class IndySdkWallet(BaseWallet):
             The new verification key
 
         """
+        # Check if did can rotate keys
+        did_method = DIDMethod.from_did(did)
+        if not did_method.supports_rotation:
+            raise WalletError(
+                f"Did method {did_method.method_name} does not support key rotation."
+            )
+
         try:
             verkey = await indy.did.replace_keys_start(
                 self.opened.handle,
@@ -178,38 +306,22 @@ class IndySdkWallet(BaseWallet):
                 x_indy, "Wallet {} error".format(self.opened.name), WalletError
             ) from x_indy
 
-    async def create_local_did(
+    async def __create_indy_local_did(
         self,
-        seed: str = None,
-        did: str = None,
+        method: DIDMethod,
+        key_type: KeyType,
         metadata: dict = None,
+        seed: str = None,
         *,
-        method: DIDMethod = DIDMethod.SOV,
-        key_type: KeyType = KeyType.ED25519,
+        did: str = None,
     ) -> DIDInfo:
-        """
-        Create and store a new local DID.
-
-        Args:
-            seed: Optional seed to use for DID
-            did: The DID to use
-            metadata: Metadata to store with DID
-            method: The method to use for the DID. Defaults to did:sov
-            key_type: The key type to use for the DID. defaults to ed25519.
-
-        Returns:
-            A `DIDInfo` instance representing the created DID
-
-        Raises:
-            WalletDuplicateError: If the DID already exists in the wallet
-            WalletError: If there is a libindy error
-
-        """
-
-        # validate key_type
-        if not method.supports_key_type(key_type):
+        if method not in [DIDMethod.SOV, DIDMethod.KEY]:
             raise WalletError(
-                f"Invalid key type {key_type.key_type} for did method f{method.method_name}"
+                f"Unsupported did method for indy storage: {method.method_name}"
+            )
+        if key_type != KeyType.ED25519:
+            raise WalletError(
+                f"Unsupported key type for indy storage: {key_type.key_type}"
             )
 
         cfg = {}
@@ -217,6 +329,10 @@ class IndySdkWallet(BaseWallet):
             cfg["seed"] = bytes_to_b64(validate_seed(seed))
         if did:
             cfg["did"] = did
+        # Create fully qualified did. This helps with determining the
+        # did method when retrieving
+        if method != DIDMethod.SOV:
+            cfg["method_name"] = method.method_name
         did_json = json.dumps(cfg)
         # crypto_type, cid - optional parameters skipped
         try:
@@ -230,21 +346,105 @@ class IndySdkWallet(BaseWallet):
                 x_indy, "Wallet {} error".format(self.opened.name), WalletError
             ) from x_indy
 
-        # Store that we're using did:key for this did
+        # did key uses different format
         if method == DIDMethod.KEY:
-            if metadata:
-                metadata["method"] = method.method_name
-            else:
-                metadata = {"method": method.method_name}
-        if metadata:
-            await self.replace_local_did_metadata(did, metadata)
-        else:
-            metadata = {}
-
-        if method == DIDMethod.KEY:
-            # Transform the did to a did key
             did = DIDKey.from_public_key_b58(verkey, key_type).did
-        return DIDInfo(did, verkey, metadata)
+
+        await self.replace_local_did_metadata(did, metadata or {})
+
+        return DIDInfo(
+            did=did,
+            verkey=verkey,
+            metadata=metadata or {},
+            method=method,
+            key_type=key_type,
+        )
+
+    async def __create_keypair_local_did(
+        self,
+        method: DIDMethod,
+        key_type: KeyType,
+        metadata: dict = None,
+        seed: str = None,
+    ) -> DIDInfo:
+        if method != DIDMethod.KEY:
+            raise WalletError(
+                f"Unsupported did method for keypair storage: {method.method_name}"
+            )
+        if key_type != KeyType.BLS12381G2:
+            raise WalletError(
+                f"Unsupported key type for keypair storage: {key_type.key_type}"
+            )
+
+        public_key, secret_key = create_keypair(key_type, validate_seed(seed))
+        key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+        # should change if other did methods are supported
+        did_key = DIDKey.from_public_key(public_key, key_type)
+
+        if not metadata:
+            metadata = {}
+        metadata["method"] = method.method_name
+
+        await key_pair_mgr.store_key_pair(
+            public_key=public_key,
+            secret_key=secret_key,
+            key_type=key_type,
+            metadata=metadata,
+            tags={"method": method.method_name},
+        )
+
+        return DIDInfo(
+            did=did_key.did,
+            verkey=did_key.public_key_b58,
+            metadata=metadata,
+            method=method,
+            key_type=key_type,
+        )
+
+    async def create_local_did(
+        self,
+        method: DIDMethod,
+        key_type: KeyType,
+        seed: str = None,
+        did: str = None,
+        metadata: dict = None,
+    ) -> DIDInfo:
+        """
+        Create and store a new local DID.
+
+        Args:
+            method: The method to use for the DID
+            key_type: The key type to use for the DID
+            seed: Optional seed to use for DID
+            did: The DID to use
+            metadata: Metadata to store with DID
+
+        Returns:
+            A `DIDInfo` instance representing the created DID
+
+        Raises:
+            WalletDuplicateError: If the DID already exists in the wallet
+            WalletError: If there is a libindy error
+
+        """
+
+        # validate key_type
+        if not method.supports_key_type(key_type):
+            raise WalletError(
+                f"Invalid key type {key_type.key_type}"
+                f" for did method {method.method_name}"
+            )
+
+        # All ed25519 keys are handled by indy
+        if key_type == KeyType.ED25519:
+            return await self.__create_indy_local_did(
+                method, key_type, metadata, seed, did=did
+            )
+        # All other (only bls12381g2 atm) are handled outside of indy
+        else:
+            return await self.__create_keypair_local_did(
+                method, key_type, metadata, seed
+            )
 
     async def get_local_dids(self) -> Sequence[DIDInfo]:
         """
@@ -254,12 +454,72 @@ class IndySdkWallet(BaseWallet):
             A list of locally stored DIDs as `DIDInfo` instances
 
         """
+        # retrieve indy dids
         info_json = await indy.did.list_my_dids_with_meta(self.opened.handle)
         info = json.loads(info_json)
         ret = []
         for did in info:
-            ret.append(self.__did_info_from_info(did))
+            ret.append(self.__did_info_from_indy_info(did))
+
+        # retrieve key pairs with method set to key
+        # this needs to change if more did methods are added
+        key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+        key_pairs = await key_pair_mgr.find_key_pairs(
+            tag_query={"method": DIDMethod.KEY.method_name}
+        )
+        for key_pair in key_pairs:
+            ret.append(self.__did_info_from_key_pair_info(key_pair))
+
         return ret
+
+    async def __get_indy_local_did(
+        self, method: DIDMethod, key_type: KeyType, did: str
+    ) -> DIDInfo:
+        if method not in [DIDMethod.SOV, DIDMethod.KEY]:
+            raise WalletError(
+                f"Unsupported did method for indy storage: {method.method_name}"
+            )
+        if key_type != KeyType.ED25519:
+            raise WalletError(
+                f"Unsupported key type for indy storage: {key_type.key_type}"
+            )
+
+        # key type is always ed25519, method not always key
+        if method == DIDMethod.KEY and key_type == KeyType.ED25519:
+            did_key = DIDKey.from_did(did)
+
+            # Ed25519 did:keys are masked indy dids so transform to indy
+            # did with did:key prefix.
+            did = "did:key:" + bytes_to_b58(did_key.public_key[:16])
+        try:
+            info_json = await indy.did.get_my_did_with_meta(self.opened.handle, did)
+        except IndyError as x_indy:
+            if x_indy.error_code == ErrorCode.WalletItemNotFound:
+                raise WalletNotFoundError("Unknown DID: {}".format(did))
+            raise IndyErrorHandler.wrap_error(
+                x_indy, "Wallet {} error".format(self.opened.name), WalletError
+            ) from x_indy
+        info = json.loads(info_json)
+        return self.__did_info_from_indy_info(info)
+
+    async def __get_keypair_local_did(
+        self, method: DIDMethod, key_type: KeyType, did: str
+    ):
+        if method != DIDMethod.KEY:
+            raise WalletError(
+                f"Unsupported did method for keypair storage: {method.method_name}"
+            )
+        if key_type != KeyType.BLS12381G2:
+            raise WalletError(
+                f"Unsupported key type for keypair storage: {key_type.key_type}"
+            )
+
+        # method is always did:key
+        did_key = DIDKey.from_did(did)
+
+        key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+        key_pair = await key_pair_mgr.get_key_pair(verkey=did_key.public_key_b58)
+        return self.__did_info_from_key_pair_info(key_pair)
 
     async def get_local_did(self, did: str) -> DIDInfo:
         """
@@ -276,24 +536,18 @@ class IndySdkWallet(BaseWallet):
             WalletError: If there is a libindy error
 
         """
+        method = DIDMethod.from_did(did)
+        key_type = KeyType.ED25519
 
-        # Resolve
-        if did.startswith("did:key"):
+        # If did key, the key type can differ
+        if method == DIDMethod.KEY:
             did_key = DIDKey.from_did(did)
-            # Ed25519 did:keys are masked indy dids
-            if did_key.key_type == KeyType.ED25519:
-                did = bytes_to_b58(did_key.public_key[:16])
+            key_type = did_key.key_type
 
-        try:
-            info_json = await indy.did.get_my_did_with_meta(self.opened.handle, did)
-        except IndyError as x_indy:
-            if x_indy.error_code == ErrorCode.WalletItemNotFound:
-                raise WalletNotFoundError("Unknown DID: {}".format(did))
-            raise IndyErrorHandler.wrap_error(
-                x_indy, "Wallet {} error".format(self.opened.name), WalletError
-            ) from x_indy
-        info = json.loads(info_json)
-        return self.__did_info_from_info(info)
+        if key_type == KeyType.ED25519:
+            return await self.__get_indy_local_did(method, key_type, did)
+        else:
+            return await self.__get_keypair_local_did(method, key_type, did)
 
     async def get_local_did_for_verkey(self, verkey: str) -> DIDInfo:
         """
@@ -325,14 +579,26 @@ class IndySdkWallet(BaseWallet):
             metadata: The new metadata
 
         """
-        meta_json = json.dumps(metadata or {})
-        await self.get_local_did(did)  # throw exception if undefined
-        try:
-            await indy.did.set_did_metadata(self.opened.handle, did, meta_json)
-        except IndyError as x_indy:
-            raise IndyErrorHandler.wrap_error(
-                x_indy, "Wallet {} error".format(self.opened.name), WalletError
-            ) from x_indy
+        if not metadata:
+            metadata = {}
+        did_info = await self.get_local_did(did)  # throw exception if undefined
+
+        # ed25519 keys are handled by indy
+        if did_info.key_type == KeyType.ED25519:
+            try:
+                await indy.did.set_did_metadata(
+                    self.opened.handle, did, json.dumps(metadata)
+                )
+            except IndyError as x_indy:
+                raise IndyErrorHandler.wrap_error(
+                    x_indy, "Wallet {} error".format(self.opened.name), WalletError
+                ) from x_indy
+        # all other keys are handled by key pair
+        else:
+            key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+            await key_pair_mgr.update_key_pair_metadata(
+                verkey=did_info.verkey, metadata=metadata
+            )
 
     async def set_did_endpoint(
         self,
@@ -353,6 +619,11 @@ class IndySdkWallet(BaseWallet):
                 'endpoint' affects local wallet
         """
         did_info = await self.get_local_did(did)
+        if did_info.method != DIDMethod.SOV:
+            raise WalletError(
+                f"Did method {did_info.method.method_name} has no support for endpoints."
+            )
+
         metadata = {**did_info.metadata}
         if not endpoint_type:
             endpoint_type = EndpointType.ENDPOINT
@@ -395,16 +666,38 @@ class IndySdkWallet(BaseWallet):
             raise WalletError("Message not provided")
         if not from_verkey:
             raise WalletError("Verkey not provided")
+
         try:
-            result = await indy.crypto.crypto_sign(
-                self.opened.handle, from_verkey, message
+            key_info = await self.get_signing_key(from_verkey)
+        except WalletNotFoundError:
+            key_info = await self.get_local_did_for_verkey(from_verkey)
+
+        # ed25519 keys are handled by indy
+        if key_info.key_type == KeyType.ED25519:
+            try:
+                result = await indy.crypto.crypto_sign(
+                    self.opened.handle, from_verkey, message
+                )
+            except IndyError:
+                raise WalletError("Exception when signing message")
+        # other keys are handled outside of indy
+        else:
+            key_pair_mgr = KeyPairStorageManager(IndySdkStorage(self.opened))
+            key_pair = await key_pair_mgr.get_key_pair(verkey=key_info.verkey)
+            result = sign_message(
+                message=message,
+                secret=b58_to_bytes(key_pair["secret_key"]),
+                key_type=key_info.key_type,
             )
-        except IndyError:
-            raise WalletError("Exception when signing message")
+
         return result
 
     async def verify_message(
-        self, message: bytes, signature: bytes, from_verkey: str
+        self,
+        message: Union[List[bytes], bytes],
+        signature: bytes,
+        from_verkey: str,
+        key_type: KeyType,
     ) -> bool:
         """
         Verify a signature against the public key of the signer.
@@ -430,16 +723,29 @@ class IndySdkWallet(BaseWallet):
             raise WalletError("Signature not provided")
         if not message:
             raise WalletError("Message not provided")
-        try:
-            result = await indy.crypto.crypto_verify(from_verkey, message, signature)
-        except IndyError as x_indy:
-            if x_indy.error_code == ErrorCode.CommonInvalidStructure:
-                result = False
-            else:
-                raise IndyErrorHandler.wrap_error(
-                    x_indy, "Wallet {} error".format(self.opened.name), WalletError
-                ) from x_indy
-        return result
+
+        # ed25519 keys are handled by indy
+        if key_type == KeyType.ED25519:
+            try:
+                result = await indy.crypto.crypto_verify(
+                    from_verkey, message, signature
+                )
+            except IndyError as x_indy:
+                if x_indy.error_code == ErrorCode.CommonInvalidStructure:
+                    result = False
+                else:
+                    raise IndyErrorHandler.wrap_error(
+                        x_indy, "Wallet {} error".format(self.opened.name), WalletError
+                    ) from x_indy
+            return result
+        # all other keys (only bls12381g2 atm) are handled outside of indy
+        else:
+            return verify_signed_message(
+                message=message,
+                signature=signature,
+                verkey=b58_to_bytes(from_verkey),
+                key_type=key_type,
+            )
 
     async def pack_message(
         self, message: str, to_verkeys: Sequence[str], from_verkey: str = None
@@ -473,7 +779,7 @@ class IndySdkWallet(BaseWallet):
 
         return result
 
-    async def unpack_message(self, enc_message: bytes) -> (str, str, str):
+    async def unpack_message(self, enc_message: bytes) -> Tuple[str, str, str]:
         """
         Unpack a message.
 

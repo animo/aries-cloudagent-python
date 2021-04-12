@@ -1,14 +1,16 @@
-"""Ed25519 key pair based on base wallet interface"""
+"""Ed25519 key pair based on base wallet interface."""
 
 from typing import Optional
 
+from ....wallet.crypto import KeyType
+from ....wallet.util import b58_to_bytes
 from ....wallet.base import BaseWallet
 from ..error import LinkedDataProofException
 from .WalletKeyPair import WalletKeyPair
 
 
 class Ed25519WalletKeyPair(WalletKeyPair):
-    """Ed25519 wallet key pair"""
+    """Ed25519 wallet key pair."""
 
     def __init__(self, *, wallet: BaseWallet, public_key_base58: Optional[str] = None):
         """Initialize new Ed25519WalletKeyPair instance."""
@@ -17,7 +19,7 @@ class Ed25519WalletKeyPair(WalletKeyPair):
         self.public_key_base58 = public_key_base58
 
     async def sign(self, message: bytes) -> bytes:
-        """Sign message using Ed25519 key"""
+        """Sign message using Ed25519 key."""
         if not self.public_key_base58:
             raise LinkedDataProofException(
                 "Unable to sign message with Ed25519WalletKeyPair: No key to sign with"
@@ -28,23 +30,24 @@ class Ed25519WalletKeyPair(WalletKeyPair):
         )
 
     async def verify(self, message: bytes, signature: bytes) -> bool:
-        """Verify message against signature using Ed25519 key"""
+        """Verify message against signature using Ed25519 key."""
         if not self.public_key_base58:
             raise LinkedDataProofException(
-                "Unable to verify message with Ed25519WalletKeyPair: No key to sign verify with"
+                "Unable to verify message with Ed25519WalletKeyPair"
+                ": No key to verify with"
             )
 
         return await self.wallet.verify_message(
-            message, signature, self.public_key_base58
+            message, signature, self.public_key_base58, KeyType.ED25519
         )
 
     def from_verification_method(
         self, verification_method: dict
     ) -> "Ed25519WalletKeyPair":
-        """Create new Ed25519WalletKeyPair from public key in verification method"""
+        """Create new Ed25519WalletKeyPair from public key in verification method."""
         if "publicKeyBase58" not in verification_method:
             raise LinkedDataProofException(
-                "Cannot set public key from verification method: publicKeyBase58 not found"
+                "Unable to set public key from verification method: no publicKeyBase58"
             )
 
         return Ed25519WalletKeyPair(
@@ -52,6 +55,11 @@ class Ed25519WalletKeyPair(WalletKeyPair):
         )
 
     @property
+    def public_key(self) -> Optional[bytes]:
+        """Getter for public key."""
+        return b58_to_bytes(self.public_key_base58)
+
+    @property
     def has_public_key(self) -> bool:
-        """Whether key pair has public key"""
-        return self.public_key_base58 != None
+        """Whether key pair has public key."""
+        return self.public_key_base58 is not None

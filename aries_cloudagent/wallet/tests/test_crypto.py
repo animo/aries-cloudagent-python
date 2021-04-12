@@ -1,6 +1,7 @@
 import base64
-import json
 import pytest
+import json
+
 from unittest import mock, TestCase
 
 from ..util import str_to_b64
@@ -29,7 +30,9 @@ class TestUtil(TestCase):
     def test_seeds_keys(self):
         assert len(test_module.seed_to_did(SEED)) in (22, 23)
 
-        (public_key, secret_key) = test_module.create_keypair()
+        (public_key, secret_key) = test_module.create_keypair(
+            test_module.KeyType.ED25519
+        )
         assert public_key
         assert secret_key
 

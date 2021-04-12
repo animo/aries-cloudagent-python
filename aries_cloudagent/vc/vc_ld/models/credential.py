@@ -1,3 +1,5 @@
+"""Verifiable Credential model classes."""
+
 from marshmallow import ValidationError
 import copy
 import json
@@ -5,7 +7,10 @@ from typing import List, Optional, Union
 from datetime import datetime
 
 from ....messaging.valid import Uri
-from ...ld_proofs.constants import CREDENTIALS_V1_URL, VERIFIABLE_CREDENTIAL_TYPE
+from ...ld_proofs.constants import (
+    CREDENTIALS_CONTEXT_V1_URL,
+    VERIFIABLE_CREDENTIAL_TYPE,
+)
 from .credential_schema import (
     CredentialSchema,
     VerifiableCredentialSchema,
@@ -14,7 +19,7 @@ from .credential_schema import (
 
 
 class LDProof:
-    """Linked Data Proof model"""
+    """Linked Data Proof model."""
 
     def __init__(
         self,
@@ -49,6 +54,7 @@ class LDProof:
 
         Returns:
             LDProof: The deserialized LDProof object
+
         """
         if isinstance(proof, str):
             proof = json.loads(proof)
@@ -61,6 +67,7 @@ class LDProof:
 
         Returns:
             dict: The LDProof serialized as dict.
+
         """
         schema = LinkedDataProofSchema()
         proof: dict = schema.dump(copy.deepcopy(self))
@@ -69,7 +76,7 @@ class LDProof:
 
 
 class VerifiableCredential:
-    """Verifiable Credential model"""
+    """Verifiable Credential model."""
 
     def __init__(
         self,
@@ -84,7 +91,7 @@ class VerifiableCredential:
         **kwargs,
     ) -> None:
         """Initialize the VerifiableCredential instance."""
-        self._context = context or [CREDENTIALS_V1_URL]
+        self._context = context or [CREDENTIALS_CONTEXT_V1_URL]
         self._id = id
         self._type = type or [VERIFIABLE_CREDENTIAL_TYPE]
         self._issuer = issuer
@@ -112,6 +119,7 @@ class VerifiableCredential:
 
         Returns:
             VerifiableCredential: The deserialized VerifiableCredential object
+
         """
         if isinstance(credential, str):
             credential = json.loads(credential)
@@ -124,6 +132,7 @@ class VerifiableCredential:
 
         Returns:
             dict: The VerifiableCredential serialized as dict.
+
         """
         schema = VerifiableCredentialSchema()
         credential: dict = schema.dump(copy.deepcopy(self))
@@ -141,7 +150,7 @@ class VerifiableCredential:
 
         First item must be credentials v1 url
         """
-        assert context[0] == CREDENTIALS_V1_URL
+        assert context[0] == CREDENTIALS_CONTEXT_V1_URL
 
         self._context = context
 

@@ -1,4 +1,4 @@
-"""Credential Issuance  proof purpose class"""
+"""Credential Issuance proof purpose class."""
 
 from typing import List
 from pyld.jsonld import JsonLdProcessor
@@ -24,7 +24,7 @@ class CredentialIssuancePurpose(AssertionProofPurpose):
         verification_method: dict,
         document_loader: DocumentLoader,
     ) -> PurposeResult:
-        """Checks whether the issuer matches the controller of the verification method."""
+        """Validate if the issuer matches the controller of the verification method."""
         try:
             result = super().validate(
                 proof=proof,
@@ -55,8 +55,10 @@ class CredentialIssuancePurpose(AssertionProofPurpose):
             if len(issuer) == 0:
                 raise LinkedDataProofException("Credential issuer is required.")
 
-            # TODO: we're mixing expanded and not-expanded here. Confusing
-            if result.controller.get("id") != issuer[0].get("@id"):
+            controller_id = result.controller.get("id")
+            issuer_id = issuer[0].get("@id")
+
+            if controller_id != issuer_id:
                 raise LinkedDataProofException(
                     "Credential issuer must match the verification method controller."
                 )

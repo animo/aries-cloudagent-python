@@ -1,4 +1,4 @@
-from .ld_proofs import sign, verify
+from .ld_proofs import sign, verify, derive
 from .ProofSet import ProofSet
 from .purposes import (
     ProofPurpose,
@@ -12,15 +12,24 @@ from .suites import (
     LinkedDataSignature,
     JwsLinkedDataSignature,
     Ed25519Signature2018,
+    BbsBlsSignature2020,
+    BbsBlsSignatureProof2020,
 )
-from .crypto import KeyPair, Ed25519WalletKeyPair
+from .crypto import (
+    KeyPair,
+    Ed25519WalletKeyPair,
+    Bls12381G2WalletKeyPair,
+    WalletKeyPair,
+)
 from .document_loader import DocumentLoader, get_default_document_loader
 from .error import LinkedDataProofException
 from .validation_result import DocumentVerificationResult, ProofResult, PurposeResult
+from .check import get_properties_without_context
 
 __all__ = [
     sign,
     verify,
+    derive,
     ProofSet,
     # Proof purposes
     ProofPurpose,
@@ -33,9 +42,13 @@ __all__ = [
     LinkedDataSignature,
     JwsLinkedDataSignature,
     Ed25519Signature2018,
+    BbsBlsSignature2020,
+    BbsBlsSignatureProof2020,
     # Key pairs
     KeyPair,
+    WalletKeyPair,
     Ed25519WalletKeyPair,
+    Bls12381G2WalletKeyPair,
     # Document Loaders
     DocumentLoader,
     get_default_document_loader,
@@ -45,4 +58,5 @@ __all__ = [
     DocumentVerificationResult,
     ProofResult,
     PurposeResult,
+    get_properties_without_context,
 ]

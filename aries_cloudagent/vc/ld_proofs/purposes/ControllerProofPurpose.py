@@ -1,11 +1,11 @@
-"""Controller proof purpose class"""
+"""Controller proof purpose class."""
 
 from pyld.jsonld import JsonLdProcessor
 from pyld import jsonld
 
 from ..error import LinkedDataProofException
 from ..validation_result import PurposeResult
-from ..constants import SECURITY_V2_URL
+from ..constants import SECURITY_CONTEXT_URL
 from ..suites import LinkedDataProof
 from ..document_loader import DocumentLoader
 from .ProofPurpose import ProofPurpose
@@ -51,13 +51,13 @@ class ControllerProofPurpose(ProofPurpose):
             result.controller = jsonld.frame(
                 controller_id,
                 frame={
-                    "@context": SECURITY_V2_URL,
+                    "@context": SECURITY_CONTEXT_URL,
                     "id": controller_id,
                     self.term: {"@embed": "@never", "id": verification_id},
                 },
                 options={
                     "documentLoader": document_loader,
-                    "expandContext": SECURITY_V2_URL,
+                    "expandContext": SECURITY_CONTEXT_URL,
                     # if we don't set base explicitly it will remove the base in returned
                     # document (e.g. use key:z... instead of did:key:z...)
                     # same as compactToRelative in jsonld.js
@@ -75,7 +75,8 @@ class ControllerProofPurpose(ProofPurpose):
 
             if not result.valid:
                 raise LinkedDataProofException(
-                    f"Verification method {verification_id} not authorized by controller for proof purpose {self.term}"
+                    f"Verification method {verification_id} not authorized"
+                    f" by controller for proof purpose {self.term}"
                 )
 
             return result

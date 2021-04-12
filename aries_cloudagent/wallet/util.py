@@ -3,6 +3,20 @@
 import base58
 import base64
 
+import nacl.utils
+import nacl.bindings
+
+
+def random_seed() -> bytes:
+    """
+    Generate a random seed value.
+
+    Returns:
+        A new random seed
+
+    """
+    return nacl.utils.random(nacl.bindings.crypto_box_SEEDBYTES)
+
 
 def pad(val: str) -> str:
     """Pad base64 values if need be: JWT calls to omit trailing padding."""
@@ -60,9 +74,15 @@ def bytes_to_b58(val: bytes) -> str:
 
 
 def full_verkey(did: str, abbr_verkey: str) -> str:
-    """Given a DID and a short verkey, return the full verkey."""
+    """Given a DID and abbreviated verkey, return the full verkey."""
     return (
         bytes_to_b58(b58_to_bytes(did.split(":")[-1]) + b58_to_bytes(abbr_verkey[1:]))
         if abbr_verkey.startswith("~")
         else abbr_verkey
     )
+
+
+def abbr_verkey(full_verkey: str, did: str = None) -> str:
+    """Given a full verkey and DID, return the abbreviated verkey."""
+    did_len = len(b58_to_bytes(did.split(":")[-1])) if did else 16
+    return f"~{bytes_to_b58(b58_to_bytes(full_verkey)[did_len:])}"

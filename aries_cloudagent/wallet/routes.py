@@ -8,7 +8,7 @@ from aiohttp_apispec import (
     response_schema,
 )
 
-from marshmallow import fields, validate, ValidationError
+from marshmallow import fields, validate
 
 from ..admin.request_context import AdminRequestContext
 from ..ledger.base import BaseLedger
@@ -46,6 +46,18 @@ class DIDSchema(OpenAPISchema):
             "or local to the wallet"
         ),
         **DID_POSTURE,
+    )
+    method = fields.Str(
+        description="Did method associated with the DID",
+        example=DIDMethod.SOV.method_name,
+        validate=validate.OneOf([method.method_name for method in DIDMethod]),
+    )
+    key_type = fields.Str(
+        description="Key type associated with the DID",
+        example=KeyType.ED25519.key_type,
+        validate=validate.OneOf(
+            [KeyType.ED25519.key_type, KeyType.BLS12381G2.key_type]
+        ),
     )
 
 
@@ -111,6 +123,14 @@ class DIDListQueryStringSchema(OpenAPISchema):
         validate=validate.OneOf([DIDMethod.KEY.method_name, DIDMethod.SOV.method_name]),
         description="DID method to query for. e.g. sov to only fetch indy/sov DIDs",
     )
+    key_type = fields.Str(
+        required=False,
+        example=KeyType.ED25519.key_type,
+        validate=validate.OneOf(
+            [KeyType.ED25519.key_type, KeyType.BLS12381G2.key_type]
+        ),
+        description="Key type to query for.",
+    )
 
 
 class DIDQueryStringSchema(OpenAPISchema):
@@ -125,7 +145,9 @@ class DIDCreateOptionsSchema(OpenAPISchema):
     key_type = fields.Str(
         required=True,
         example=KeyType.ED25519.key_type,
-        validate=validate.OneOf([key_type.key_type for key_type in KeyType]),
+        validate=validate.OneOf(
+            [KeyType.ED25519.key_type, KeyType.BLS12381G2.key_type]
+        ),
     )
 
 
@@ -153,6 +175,8 @@ def format_did_info(info: DIDInfo):
             "did": info.did,
             "verkey": info.verkey,
             "posture": DIDPosture.get(info.metadata).moniker,
+            "key_type": info.key_type.key_type,
+            "method": info.method.method_name,
         }
 
 
@@ -179,6 +203,7 @@ async def wallet_did_list(request: web.BaseRequest):
     filter_verkey = request.query.get("verkey")
     filter_method = DIDMethod.from_method(request.query.get("method"))
     filter_posture = DIDPosture.get(request.query.get("posture"))
+    filter_key_type = KeyType.from_key_type(request.query.get("key_type"))
     results = []
     public_did_info = await wallet.get_public_did()
     posted_did_infos = await wallet.get_posted_dids()
@@ -188,11 +213,8 @@ async def wallet_did_list(request: web.BaseRequest):
             public_did_info
             and (not filter_verkey or public_did_info.verkey == filter_verkey)
             and (not filter_did or public_did_info.did == filter_did)
-            # filter by did method
-            and (
-                not filter_method
-                or DIDMethod.from_metadata(public_did_info.metadata) == filter_method
-            )
+            and (not filter_method or public_did_info.method == filter_method)
+            and (not filter_key_type or public_did_info.key_type == filter_key_type)
         ):
             results.append(format_did_info(public_did_info))
     elif filter_posture is DIDPosture.POSTED:
@@ -201,11 +223,8 @@ async def wallet_did_list(request: web.BaseRequest):
             if (
                 (not filter_verkey or info.verkey == filter_verkey)
                 and (not filter_did or info.did == filter_did)
-                # filter by did method
-                and (
-                    not filter_method
-                    or DIDMethod.from_metadata(info.metadata) == filter_method
-                )
+                and (not filter_method or info.method == filter_method)
+                and (not filter_key_type or info.key_type == filter_key_type)
             ):
                 results.append(format_did_info(info))
     elif filter_did:
@@ -217,17 +236,14 @@ async def wallet_did_list(request: web.BaseRequest):
         if (
             info
             and (not filter_verkey or info.verkey == filter_verkey)
+            and (not filter_method or info.method == filter_method)
+            and (not filter_key_type or info.key_type == filter_key_type)
             and (
                 filter_posture is None
                 or (
                     filter_posture is DIDPosture.WALLET_ONLY
                     and not info.metadata.get("posted")
                 )
-            )
-            # filter by did method
-            and (
-                not filter_method
-                or DIDMethod.from_metadata(info.metadata) == filter_method
             )
         ):
             results.append(format_did_info(info))
@@ -238,17 +254,14 @@ async def wallet_did_list(request: web.BaseRequest):
             info = None
         if (
             info
+            and (not filter_method or info.method == filter_method)
+            and (not filter_key_type or info.key_type == filter_key_type)
             and (
                 filter_posture is None
                 or (
                     filter_posture is DID_POSTURE.WALLET_ONLY
                     and not info.metadata.get("posted")
                 )
-            )
-            # filter by did method
-            and (
-                not filter_method
-                or DIDMethod.from_metadata(info.metadata) == filter_method
             )
         ):
             results.append(format_did_info(info))
@@ -261,11 +274,8 @@ async def wallet_did_list(request: web.BaseRequest):
                 filter_posture is None
                 or DIDPosture.get(info.metadata) is DIDPosture.WALLET_ONLY
             )
-            # filter by did method
-            and (
-                not filter_method
-                or DIDMethod.from_metadata(info.metadata) == filter_method
-            )
+            and (not filter_method or info.method == filter_method)
+            and (not filter_key_type or info.key_type == filter_key_type)
         ]
 
     results.sort(
@@ -292,9 +302,10 @@ async def wallet_create_did(request: web.BaseRequest):
 
     try:
         body = await request.json()
-    except:
+    except Exception:
         body = {}
 
+    # set default method and key type for backwards compat
     key_type = (
         KeyType.from_key_type(body.get("options", {}).get("key_type"))
         or KeyType.ED25519
@@ -302,7 +313,12 @@ async def wallet_create_did(request: web.BaseRequest):
     method = DIDMethod.from_method(body.get("method")) or DIDMethod.SOV
 
     if not method.supports_key_type(key_type):
-        raise ValidationError(f"method {method} does not support key type {key_type}")
+        raise web.HTTPForbidden(
+            reason=(
+                f"method {method.method_name} does not"
+                f" support key type {key_type.key_type}"
+            )
+        )
 
     session = await context.session()
     wallet = session.inject(BaseWallet, required=False)
