@@ -3,162 +3,153 @@ import pytest
 import json
 
 from .....storage.vc_holder.vc_record import VCRecord
-from .....resolver.did_resolver_registry import DIDResolverRegistry
-from .....resolver.did_resolver import DIDResolver
 
 from ..pres_exch import PresentationDefinition
 from ..pres_exch_handler import PresentationExchError
 
-from .....core.in_memory import InMemoryProfile
-from .....did.did_key import DIDKey
-from .....vc.vc_ld.issue import issue
-from .....vc.ld_proofs.document_loader import DocumentLoader
-from .....vc.tests.document_loader import custom_document_loader
-from .....vc.ld_proofs import (
-    BbsBlsSignatureProof2020,
-    BbsBlsSignature2020,
-    Ed25519Signature2018,
-    WalletKeyPair,
-)
-from .....wallet.base import BaseWallet
-from .....wallet.crypto import KeyType
-from .....wallet.util import b58_to_bytes
-from .....wallet.in_memory import InMemoryWallet
 
-cred_json_1 = """
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1872",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
+cred_1 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ], 
+    "id": "http://example.edu/credentials/1872", 
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"], 
+    "issuer": {
       "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
-  "issuanceDate": "2010-01-01T19:53:24Z",
-  "credentialSubject": {
-    "id": "did:example:123",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:123",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:44:01.880721", "proofPurpose": "assertionMethod", "proofValue": "pEITBAlGT56J5l1v2emxiGZJj/5AhUl//FOCD6g6nOXfHXF0Y5kljDz2VQRUaZ1eG40c3i95fmOfN77Qwwwg40bFl+QkJ73FLjxKx22bGFszuxjZwowzOxNbj6r5LgpKiHouUxnabdQoGww7FealjA=="
     }
   }
-}
 """
 
-cred_json_2 = """
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1873",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
+cred_2 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    "id": "http://example.edu/credentials/1873",
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": {
       "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
-  "issuanceDate": "2010-01-01T19:53:24Z",
-  "credentialSubject": {
-    "id": "did:example:456",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:456",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:49:31.150011", "proofPurpose": "assertionMethod", "proofValue": "gm2AqL5u32nl5rDs4k7UZftw9Z6zaWH4jRFZ9c3Kav1Tvw7lnLtYWYQx0zkLIFG0H8qoTMhvJj5bE84Jzbje2R9lJDFyc06QSuuXu+eZouwcINA8bzAgAHEzwRO38MZwNl4g1Df5DvxOj3qiDvKQTA=="
     }
   }
-}
 """
 
-cred_json_3 = """
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1874",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
+cred_3 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    "id": "http://example.edu/credentials/1874",
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": {
       "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
-  "issuanceDate": "2010-01-01T19:53:24Z",
-  "credentialSubject": {
-    "id": "did:example:789",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:789",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:52:04.078478", "proofPurpose": "assertionMethod", "proofValue": "jaRHMl3ogsAwE2sthc3hacVwxJTVJ9T/odtoXpu9oGvw7esXWwV0DcGpJDpwE4+MTx/wihGobcp92XNJ8spUfh3lI8KiyO4SmJOQ5D7Uub0sh0hLjvmxdeqdgfMgRToFN6Psvy15YOG+5U84IuTVtg=="
     }
   }
-}
-"""
-cred_json_4 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1875",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:321",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
-    }
 """
 
-cred_json_5 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1876",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },      
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:654",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
+cred_4 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    "id": "http://example.edu/credentials/1875",
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:321",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:55:24.507882", "proofPurpose": "assertionMethod", "proofValue": "s3aCMqZrNTKCt/p9ZeUak4c+b4RcReYG8YkfYR8EiwuUWS35NDXP1g3XtD5cYS0xEzEcsMvrZCU0tAYJA1dRyUbWUUaNOGAHZ6zwI6tJduYEaW9tOzB+oancN+r7U335kedYYiNhLVzEg1UkAGAJWQ=="
     }
+  }
 """
-cred_json_6 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1877",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },      
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:987",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
+
+cred_5 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    "id": "http://example.edu/credentials/1876",
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:654",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:58:28.051782", "proofPurpose": "assertionMethod", "proofValue": "h4yYMJhw7IhyenlXKb5WNcFZs3Ba7gMobw9HY5mZwmFuin5pOTuSS9bLQmCpsKX3NVQLGyr5rzFZnwnd1AXEc7sfxYxTTSqSvT/Ba0J+xsY+z7A5eqLcjw3jezXSeBvE7MdWrakZJrc5pQ0Du1Znww=="
     }
+  }
+"""
+
+cred_6 = """
+  {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    "id": "http://example.edu/credentials/1877",
+    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": {
+      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+    },
+    "issuanceDate": "2010-01-01T19:53:24Z",
+    "credentialSubject": {
+      "id": "did:example:987",
+      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+    },
+    "proof": {
+      "type": "BbsBlsSignature2020",
+      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T09:00:33.866119", "proofPurpose": "assertionMethod", "proofValue": "hpKtBdwAOYJx3shd68VicbGljQvbRVb8BDKA6ZgUbfEVIpj1tt6CYxJ87P0foWBpNzFZ3ugswNiXEz8xEDLcs5Zd2UH3UR6/lhpcrvxFCwEJDgAXqMUlLd9CF/2/LIk/JcT0GOIjahaenHlgDm4TPA=="
+    }
+  }
 """
 
 pres_exch_nested_srs = """
@@ -532,67 +523,14 @@ pres_exch_number_const_met = """
 }
 """
 
-def make_profile():
-    profile = InMemoryProfile.test_profile()
-    context = profile.context
-    did_resolver_registry = DIDResolverRegistry()
-    context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
-    context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
-    context.injector.bind_instance(DocumentLoader, custom_document_loader)
-    return profile
-
-@pytest.mark.asyncio
-@pytest.mark.ursa_bbs_signatures
-async def get_test_data():
-    profile = make_profile()
-    wallet = InMemoryWallet(profile)
-    bls12381g2_key_info = await wallet.create_signing_key(
-      key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000001"
-    )
-    bls12381g2_verification_method = DIDKey.from_public_key_b58(
-        bls12381g2_key_info.verkey, KeyType.BLS12381G2
-    ).key_id
-    signature_issuer_suite = BbsBlsSignature2020(
-        verification_method=bls12381g2_verification_method,
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
-        )
-    )
-
-    signature_proof_suite = BbsBlsSignatureProof2020(
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
-        ),
-    )
+def get_test_data():
     creds_json_list = [
-        json.dumps(await issue(credential=json.loads(cred_json_1), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_2), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_3), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_4), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_5), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_6), 
-                    suite=signature_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
+        cred_1,
+        cred_2,
+        cred_3,
+        cred_4,
+        cred_5,
+        cred_6,
     ]
 
     vc_record_list = []
@@ -615,4 +553,4 @@ async def get_test_data():
             )
         )
     # Returns VCRecords, PDsList, profile and suites for PresExch Tests
-    return (vc_record_list, pd_list, profile, signature_issuer_suite, signature_proof_suite)
+    return (vc_record_list, pd_list)
