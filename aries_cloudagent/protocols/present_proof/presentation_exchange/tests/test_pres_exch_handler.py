@@ -1,14 +1,10 @@
 import asyncio
 import pytest
-import json
 
-from asynctest import TestCase
 from copy import deepcopy
 
 from .....core.in_memory import InMemoryProfile
 from .....core.profile import Profile
-from .....did.did_key import DIDKey
-from .....storage.vc_holder.vc_record import VCRecord
 
 from ..pres_exch import (
     PresentationDefinition,
@@ -33,21 +29,6 @@ from ..pres_exch_handler import (
     create_vp,
     PresentationExchError,
 )
-from .....resolver.did_resolver_registry import DIDResolverRegistry
-from .....resolver.did_resolver import DIDResolver
-from .....vc.ld_proofs import (
-    WalletKeyPair,
-    BbsBlsSignature2020,
-    BbsBlsSignatureProof2020,
-    Ed25519Signature2018,
-)
-from .....vc.ld_proofs.document_loader import DocumentLoader
-from .....vc.tests.document_loader import custom_document_loader
-from .....vc.vc_ld.issue import issue
-from .....wallet.base import BaseWallet
-from .....wallet.crypto import KeyType
-from .....wallet.util import b58_to_bytes
-from .....wallet.in_memory import InMemoryWallet
 
 from .test_data import get_test_data
 
@@ -60,59 +41,14 @@ def event_loop(request):
 
 @pytest.fixture(scope='class')
 async def setup_tuple():
-    creds, pds = get_test_data()
-    return creds, pds
-
-@pytest.fixture(scope="class")
-def profile():
-    profile = InMemoryProfile.test_profile()
-    context = profile.context
-    did_resolver_registry = DIDResolverRegistry()
-    context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
-    context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
-    context.injector.bind_instance(DocumentLoader, custom_document_loader)
-    return profile
-
-@pytest.fixture(scope="class")
-async def suites(profile):
-    wallet = InMemoryWallet(profile)
-    ed25519_key_info = await wallet.create_signing_key(
-        key_type=KeyType.ED25519, seed="testseed000000000000000000000002"
-    )
-    ed25519_verification_method = DIDKey.from_public_key_b58(
-        ed25519_key_info.verkey, KeyType.ED25519
-    ).key_id
-    bls12381g2_key_info = await wallet.create_signing_key(
-      key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000002"
-    )
-    bls12381g2_verification_method = DIDKey.from_public_key_b58(
-        bls12381g2_key_info.verkey, KeyType.BLS12381G2
-    ).key_id
-    edd_issuer_suite = Ed25519Signature2018(
-        verification_method=ed25519_verification_method,
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.ED25519,
-            public_key_base58=ed25519_key_info.verkey,
-        )
-    )
-    bls_proof_suite = BbsBlsSignatureProof2020(
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
-        ),
-    )
-    return edd_issuer_suite, bls_proof_suite
-
+    creds, pds, profile, issue_suite, proof_suite = await get_test_data()
+    return creds, pds, profile, issue_suite, proof_suite
 
 class TestPresExchHandler:
-   
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_load_cred_json(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_load_cred_json(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         assert len(cred_list) == 6
         for tmp_pd in pd_list:
             # tmp_pd is tuple of presentation_definition and expected number of VCs
@@ -348,9 +284,8 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_subject_is_issuer_check(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_subject_is_issuer_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
 
         test_pd = """
             {
@@ -439,9 +374,8 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_limit_disclosure_required_check(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_limit_disclosure_required_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -877,9 +811,8 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_filter_no_type_check(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_filter_no_type_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -937,9 +870,8 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_filter_string(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_filter_string(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd_min_length = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1255,9 +1187,8 @@ class TestPresExchHandler:
         assert len(tmp_vp["verifiableCredential"]) == 6
 
     @pytest.mark.asyncio
-    async def test_filter_schema(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_filter_schema(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_schema_list = [
             SchemaInputDescriptor(
                 uri="test123",
@@ -1267,16 +1198,14 @@ class TestPresExchHandler:
         assert len(await filter_schema(cred_list, tmp_schema_list)) == 0
 
     @pytest.mark.asyncio
-    async def test_cred_schema_match(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_cred_schema_match(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_cred = deepcopy(cred_list[0])
         assert await credential_match_schema(tmp_cred, "https://www.w3.org/2018/credentials#VerifiableCredential") is True
 
     @pytest.mark.asyncio
-    async def test_merge_nested(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_merge_nested(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_nested_result = []
         test_dict_1 = {}
         test_dict_1["citizenship_input_1"] = [
@@ -1304,9 +1233,8 @@ class TestPresExchHandler:
         tmp_result = await merge_nested_results(test_nested_result, {})
 
     @pytest.mark.asyncio
-    async def test_subject_is_issuer(self, setup_tuple, profile, suites):
-        cred_list, pd_list = setup_tuple
-        issue_suite, proof_suite = suites
+    async def test_subject_is_issuer(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_cred = deepcopy(cred_list[0])
         tmp_cred.issuer_id = "4fc82e63-f897-4dad-99cc-f698dff6c425"
         tmp_cred.subject_ids.add("4fc82e63-f897-4dad-99cc-f698dff6c425")
