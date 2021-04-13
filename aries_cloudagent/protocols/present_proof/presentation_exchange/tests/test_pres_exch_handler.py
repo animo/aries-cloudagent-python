@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+import json
 
 from asynctest import TestCase
 from copy import deepcopy
@@ -38,9 +39,11 @@ from .....vc.ld_proofs import (
     WalletKeyPair,
     BbsBlsSignature2020,
     BbsBlsSignatureProof2020,
+    Ed25519Signature2018,
 )
 from .....vc.ld_proofs.document_loader import DocumentLoader
 from .....vc.tests.document_loader import custom_document_loader
+from .....vc.vc_ld.issue import issue
 from .....wallet.base import BaseWallet
 from .....wallet.crypto import KeyType
 from .....wallet.util import b58_to_bytes
@@ -73,31 +76,38 @@ def profile():
 @pytest.fixture(scope="class")
 async def suites(profile):
     wallet = InMemoryWallet(profile)
+    ed25519_key_info = await wallet.create_signing_key(
+        key_type=KeyType.ED25519, seed="testseed000000000000000000000002"
+    )
+    ed25519_verification_method = DIDKey.from_public_key_b58(
+        ed25519_key_info.verkey, KeyType.ED25519
+    ).key_id
     bls12381g2_key_info = await wallet.create_signing_key(
       key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000002"
     )
     bls12381g2_verification_method = DIDKey.from_public_key_b58(
         bls12381g2_key_info.verkey, KeyType.BLS12381G2
     ).key_id
-    signature_issuer_suite = BbsBlsSignature2020(
-        verification_method=bls12381g2_verification_method,
+    edd_issuer_suite = Ed25519Signature2018(
+        verification_method=ed25519_verification_method,
         key_pair=WalletKeyPair(
             wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
+            key_type=KeyType.ED25519,
+            public_key_base58=ed25519_key_info.verkey,
         )
     )
-    signature_proof_suite = BbsBlsSignatureProof2020(
+    bls_proof_suite = BbsBlsSignatureProof2020(
         key_pair=WalletKeyPair(
             wallet=wallet,
             key_type=KeyType.BLS12381G2,
             public_key_base58=bls12381g2_key_info.verkey,
         ),
     )
-    return signature_issuer_suite, signature_proof_suite
+    return edd_issuer_suite, bls_proof_suite
 
 
 class TestPresExchHandler:
+   
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_load_cred_json(self, setup_tuple, profile, suites):
