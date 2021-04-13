@@ -44,29 +44,16 @@ def event_loop(request):
     loop.close()
 
 @pytest.fixture(scope='class')
-async def profile():
-    profile = InMemoryProfile.test_profile()
-    context = profile.context
-    did_resolver_registry = DIDResolverRegistry()
-    context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
-    context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
-    return profile
-
-@pytest.fixture(scope='class')
-async def cred_list():
-    creds, pds = await get_test_data()
-    return creds
-
-@pytest.fixture(scope='class')
-async def pd_list():
-    creds, pds = await get_test_data()
-    return pds
+async def setup_tuple():
+    creds, pds, profile, issue_suite, proof_suite = await get_test_data()
+    return creds, pds, profile, issue_suite, proof_suite
 
 
 class TestPresExchHandler:
-    
     @pytest.mark.asyncio
-    async def test_load_cred_json(self, profile, cred_list, pd_list):
+    @pytest.mark.ursa_bbs_signatures
+    async def test_load_cred_json(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         assert len(cred_list) == 6
         for tmp_pd in pd_list:
             # tmp_pd is tuple of presentation_definition and expected number of VCs
@@ -75,6 +62,8 @@ class TestPresExchHandler:
                 pd=tmp_pd[0],
                 profile=profile,
                 challenge="1f44d55f-f161-4938-a659-f8026467f126",
+                derive_suite=proof_suite,
+                issue_suite=issue_suite,
             )
             assert len(tmp_vp["verifiableCredential"]) == tmp_pd[1]
 
@@ -299,7 +288,10 @@ class TestPresExchHandler:
             )
 
     @pytest.mark.asyncio
-    async def test_subject_is_issuer_check(self, profile, cred_list):
+    @pytest.mark.ursa_bbs_signatures
+    async def test_subject_is_issuer_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
+
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -381,10 +373,14 @@ class TestPresExchHandler:
             pd=PresentationDefinition.deserialize(test_pd),
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
 
     @pytest.mark.asyncio
-    async def test_limit_disclosure_required_check(self, profile, cred_list):
+    @pytest.mark.ursa_bbs_signatures
+    async def test_limit_disclosure_required_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -436,6 +432,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
         for cred in tmp_vp["verifiableCredential"]:
@@ -817,7 +815,9 @@ class TestPresExchHandler:
         # assert len(tmp_vp["verifiableCredential"]) == 0
 
     @pytest.mark.asyncio
-    async def test_filter_no_type_check(self, profile, cred_list):
+    @pytest.mark.ursa_bbs_signatures
+    async def test_filter_no_type_check(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -868,11 +868,15 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
     @pytest.mark.asyncio
-    async def test_filter_string(self, profile, cred_list):
+    @pytest.mark.ursa_bbs_signatures
+    async def test_filter_string(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_pd_min_length = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -920,6 +924,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
@@ -970,6 +976,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
@@ -1020,6 +1028,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 0
 
@@ -1071,6 +1081,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
@@ -1122,6 +1134,8 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
@@ -1172,11 +1186,14 @@ class TestPresExchHandler:
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
 
     @pytest.mark.asyncio
-    async def test_filter_schema(self, cred_list):
+    async def test_filter_schema(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_schema_list = [
             SchemaInputDescriptor(
                 uri="test123",
@@ -1186,12 +1203,14 @@ class TestPresExchHandler:
         assert len(await filter_schema(cred_list, tmp_schema_list)) == 0
 
     @pytest.mark.asyncio
-    async def test_cred_schema_match(self, cred_list):
+    async def test_cred_schema_match(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_cred = deepcopy(cred_list[0])
         assert await credential_match_schema(tmp_cred, "https://www.w3.org/2018/credentials#VerifiableCredential") is True
 
     @pytest.mark.asyncio
-    async def test_merge_nested(self, cred_list):
+    async def test_merge_nested(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         test_nested_result = []
         test_dict_1 = {}
         test_dict_1["citizenship_input_1"] = [
@@ -1219,7 +1238,8 @@ class TestPresExchHandler:
         tmp_result = await merge_nested_results(test_nested_result, {})
 
     @pytest.mark.asyncio
-    async def test_subject_is_issuer(self, cred_list):
+    async def test_subject_is_issuer(self, setup_tuple):
+        cred_list, pd_list, profile, issue_suite, proof_suite = setup_tuple
         tmp_cred = deepcopy(cred_list[0])
         tmp_cred.issuer_id = "4fc82e63-f897-4dad-99cc-f698dff6c425"
         tmp_cred.subject_ids.add("4fc82e63-f897-4dad-99cc-f698dff6c425")

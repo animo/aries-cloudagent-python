@@ -1,4 +1,5 @@
 import datetime
+import pytest
 import json
 
 from .....storage.vc_holder.vc_record import VCRecord
@@ -11,6 +12,7 @@ from ..pres_exch_handler import PresentationExchError
 from .....core.in_memory import InMemoryProfile
 from .....did.did_key import DIDKey
 from .....vc.vc_ld.issue import issue
+from .....vc.ld_proofs.document_loader import DocumentLoader
 from .....vc.tests.document_loader import custom_document_loader
 from .....vc.ld_proofs import (
     BbsBlsSignatureProof2020,
@@ -536,20 +538,20 @@ def make_profile():
     did_resolver_registry = DIDResolverRegistry()
     context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
     context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
+    context.injector.bind_instance(DocumentLoader, custom_document_loader)
     return profile
 
+@pytest.mark.asyncio
+@pytest.mark.ursa_bbs_signatures
 async def get_test_data():
     profile = make_profile()
     wallet = InMemoryWallet(profile)
-    # async with profile.session() as session:
-    #   wallet = session.inject(BaseWallet)
     bls12381g2_key_info = await wallet.create_signing_key(
-      key_type=KeyType.BLS12381G2
+      key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000001"
     )
     bls12381g2_verification_method = DIDKey.from_public_key_b58(
         bls12381g2_key_info.verkey, KeyType.BLS12381G2
     ).key_id
-    
     signature_issuer_suite = BbsBlsSignature2020(
         verification_method=bls12381g2_verification_method,
         key_pair=WalletKeyPair(
@@ -559,6 +561,13 @@ async def get_test_data():
         )
     )
 
+    signature_proof_suite = BbsBlsSignatureProof2020(
+        key_pair=WalletKeyPair(
+            wallet=wallet,
+            key_type=KeyType.BLS12381G2,
+            public_key_base58=bls12381g2_key_info.verkey,
+        ),
+    )
     creds_json_list = [
         json.dumps(await issue(credential=json.loads(cred_json_1), 
                     suite=signature_issuer_suite, 
@@ -605,4 +614,5 @@ async def get_test_data():
                 pd[1],
             )
         )
-    return (vc_record_list, pd_list)
+    # Returns VCRecords, PDsList, profile and suites for PresExch Tests
+    return (vc_record_list, pd_list, profile, signature_issuer_suite, signature_proof_suite)
