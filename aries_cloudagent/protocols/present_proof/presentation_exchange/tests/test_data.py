@@ -14,8 +14,8 @@ cred_1 = """
       "https://www.w3.org/2018/credentials/v1",
       "https://w3id.org/security/bbs/v1",
       "https://www.w3.org/2018/credentials/examples/v1"
-    ], 
-    "id": "http://example.edu/credentials/1872", 
+    ],
+    "id": "http://example.edu/credentials/1872",
     "type": ["VerifiableCredential", "UniversityDegreeCredential"], 
     "issuer": {
       "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
@@ -23,11 +23,17 @@ cred_1 = """
     "issuanceDate": "2010-01-01T19:53:24Z",
     "credentialSubject": {
       "id": "did:example:123",
-      "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts"}
+      "degree": {
+        "type": "BachelorDegree",
+        "name": "Bachelor of Science and Arts"
+      }
     },
     "proof": {
-      "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:44:01.880721", "proofPurpose": "assertionMethod", "proofValue": "pEITBAlGT56J5l1v2emxiGZJj/5AhUl//FOCD6g6nOXfHXF0Y5kljDz2VQRUaZ1eG40c3i95fmOfN77Qwwwg40bFl+QkJ73FLjxKx22bGFszuxjZwowzOxNbj6r5LgpKiHouUxnabdQoGww7FealjA=="
+      "type": "BbsBlsSignature2020", 
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g", 
+      "created": "2021-04-13T09:44:40.224720", 
+      "proofPurpose": "assertionMethod", 
+      "proofValue": "jdAXIact43vAPsDl/wX6mSyglmc5hKLrJHxz8F6njpjpIwXuKTGK9SjMpCjUTp0tP+j9OtQaQH14cbvqbk2U0U+HEvzFKvZIVvBYEyqSpVgiXapWiyeucq1Ly3Zzz3kXMxYLux+ZtfQYxRxweTUHig=="
     }
   }
 """
@@ -51,7 +57,10 @@ cred_2 = """
     },
     "proof": {
       "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:49:31.150011", "proofPurpose": "assertionMethod", "proofValue": "gm2AqL5u32nl5rDs4k7UZftw9Z6zaWH4jRFZ9c3Kav1Tvw7lnLtYWYQx0zkLIFG0H8qoTMhvJj5bE84Jzbje2R9lJDFyc06QSuuXu+eZouwcINA8bzAgAHEzwRO38MZwNl4g1Df5DvxOj3qiDvKQTA=="
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g",
+      "created": "2021-04-13T09:56:03.315756",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "gfcwzfXLr5axXbACObQupG3147GeV309nUmX6XtLpkPiDGdAekPwgyYyyyPZSDkILEv92B+3midG+vaw1O4+Tz3EbJRN/FvnoDxLOQD11Ldoi8PAW0apg+JoKSmkc6zq9E53HMXIyQGTevobf9mcig=="
     }
   }
 """
@@ -75,7 +84,10 @@ cred_3 = """
     },
     "proof": {
       "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:52:04.078478", "proofPurpose": "assertionMethod", "proofValue": "jaRHMl3ogsAwE2sthc3hacVwxJTVJ9T/odtoXpu9oGvw7esXWwV0DcGpJDpwE4+MTx/wihGobcp92XNJ8spUfh3lI8KiyO4SmJOQ5D7Uub0sh0hLjvmxdeqdgfMgRToFN6Psvy15YOG+5U84IuTVtg=="
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g",
+      "created": "2021-04-13T10:06:11.794774",
+      "proofPurpose": "assertionMethod", 
+      "proofValue": "udmjbp7pYPO9cvkpUmE20F4VA38LjPhSo3OHzTKSYWJOQtIkdIoXMW8C5V6l07Z3ac6lZc2adAcyz38mzK0z2Ea+lZYXlZceNvukwRwK3SMKHbDfoBuMzK9VOXRTCuRQbX0T8ee7yit5wZ1ovBnksg=="
     }
   }
 """
@@ -99,7 +111,10 @@ cred_4 = """
     },
     "proof": {
       "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:55:24.507882", "proofPurpose": "assertionMethod", "proofValue": "s3aCMqZrNTKCt/p9ZeUak4c+b4RcReYG8YkfYR8EiwuUWS35NDXP1g3XtD5cYS0xEzEcsMvrZCU0tAYJA1dRyUbWUUaNOGAHZ6zwI6tJduYEaW9tOzB+oancN+r7U335kedYYiNhLVzEg1UkAGAJWQ=="
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g", 
+      "created": "2021-04-13T10:15:06.266977",
+      "proofPurpose": "assertionMethod", 
+      "proofValue": "kNhBt2CP1zInrOx+kj7WJGLtywzuvFw6+4Bpo5Pn7oZvucuqWiMMTV7VWAFM8xpiD+8xwquP6ptRjPoFps+lXypb4+LTTkbb8a4SrGYpdu9A1wOl00RsIS8eAGHMEZ8talMgSqaMt60O7SYYFHC/Rw=="
     }
   }
 """
@@ -123,7 +138,10 @@ cred_5 = """
     },
     "proof": {
       "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T08:58:28.051782", "proofPurpose": "assertionMethod", "proofValue": "h4yYMJhw7IhyenlXKb5WNcFZs3Ba7gMobw9HY5mZwmFuin5pOTuSS9bLQmCpsKX3NVQLGyr5rzFZnwnd1AXEc7sfxYxTTSqSvT/Ba0J+xsY+z7A5eqLcjw3jezXSeBvE7MdWrakZJrc5pQ0Du1Znww=="
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g",
+      "created": "2021-04-13T10:21:43.216057",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "kqBAdSsgMgz+pTGMRw61QtH679+KaEqTBPUbMcPXpIDb7z1nubb4GBdOHqHxxuQSMph6bJ1VQUCvONmNFVCIhRP1v6bRpCXnfye9NvUld/MU8S8C2Yy1+oAfkPqo0lEEVBdOhYfUDYpwCtw+v0SXDQ=="
     }
   }
 """
@@ -147,7 +165,10 @@ cred_6 = """
     },
     "proof": {
       "type": "BbsBlsSignature2020",
-      "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "created": "2021-04-13T09:00:33.866119", "proofPurpose": "assertionMethod", "proofValue": "hpKtBdwAOYJx3shd68VicbGljQvbRVb8BDKA6ZgUbfEVIpj1tt6CYxJ87P0foWBpNzFZ3ugswNiXEz8xEDLcs5Zd2UH3UR6/lhpcrvxFCwEJDgAXqMUlLd9CF/2/LIk/JcT0GOIjahaenHlgDm4TPA=="
+      "verificationMethod": "did:key:zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g#zUC75YSsU8xpRgqZaERxSeLjqXiUfxpHAHQvKMTQbLwL8AHujx1dPyxQiqvRz9XzeJgt6MM17eze1k6UPsKS4C6GFe8xG28Ux55MVAURZ7VXwEnoWq8uPXfFxBcUDWiqeHJr45g",
+      "created": "2021-04-13T10:51:17.312259",
+      "proofPurpose": "assertionMethod", 
+      "proofValue": "sYIg/SGj9C1Z2Vj+av/WJ9zGIVi+SAvF2iEz3I2IXSw5mpYmpjzQOxQ5g9/Af/ebc6T7fZljMV1pFSwZlUE8SQ243x2zKkYYaR5kwrtjwwEz0EPmTSOwfiM3A1qtB5HoGAEJ2OoL41Vly8Qn3GeERw=="
     }
   }
 """
