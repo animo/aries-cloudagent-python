@@ -162,7 +162,7 @@ cred_json_6 = """
     }
 """
 
-pres_exch_nested_srs = """
+pres_exch_nested_srs_a = """
 {
   "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
   "submission_requirements":[
@@ -235,7 +235,90 @@ pres_exch_nested_srs = """
             "filter":{
               "type":"string",
               "format":"date",
-              "minimum":"2009-5-16"
+              "maximum":"2009-5-16"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+"""
+
+pres_exch_nested_srs_b = """
+{
+  "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+  "submission_requirements":[
+    {
+      "name": "Citizenship Information",
+      "rule": "pick",
+      "count": 1,
+      "from_nested": [
+        {
+          "name": "United States Citizenship Proofs",
+          "purpose": "We need you to prove you are a US citizen.",
+          "rule": "all",
+          "from": "A"
+        },
+        {
+          "name": "European Union Citizenship Proofs",
+          "purpose": "We need you to prove you are a citizen of a EU country.",
+          "rule": "all",
+          "from": "B"
+        }
+      ]
+    }
+  ],
+  "input_descriptors":[
+    {
+      "id":"citizenship_input_1",
+      "name":"EU Driver's License",
+      "group":[
+        "A"
+      ],
+      "schema":[
+        {
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+        }
+      ],
+      "constraints":{
+        "fields":[
+          {
+            "path":[
+              "$.issuer.id",
+              "$.vc.issuer.id"
+            ],
+            "purpose":"The claim must be from one of the specified issuers",
+            "filter":{
+              "type":"string",
+              "enum": ["did:key:test"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id":"citizenship_input_2",
+      "name":"US Passport",
+      "group":[
+        "B"
+      ],
+      "schema":[
+        {
+          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+        }
+      ],
+      "constraints":{
+        "fields":[
+          {
+            "path":[
+              "$.issuanceDate",
+              "$.vc.issuanceDate"
+            ],
+            "filter":{
+              "type":"string",
+              "format":"date",
+              "maximum":"2012-5-16"
             }
           }
         ]
@@ -284,7 +367,7 @@ pres_exch_multiple_srs_not_met = """
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"]
+              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
             }
           }
         ]
@@ -311,7 +394,7 @@ pres_exch_multiple_srs_not_met = """
             "filter":{
               "type":"string",
               "format":"date",
-              "exclusiveMax":"2020-5-16"
+              "exclusiveMax":"2009-5-16"
             }
           }
         ]
@@ -358,7 +441,7 @@ pres_exch_multiple_srs_met = """
             ],
             "filter":{
               "type":"string",
-              "pattern": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
+              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
             }
           }
         ]
@@ -620,7 +703,8 @@ async def get_test_data():
         (pres_exch_multiple_srs_met, 6),
         (pres_exch_datetime_minimum_met, 6),
         (pres_exch_number_const_met, 0),
-        (pres_exch_nested_srs, 6),
+        (pres_exch_nested_srs_a, 6),
+        (pres_exch_nested_srs_b, 6),
     ]
 
     pd_list = []

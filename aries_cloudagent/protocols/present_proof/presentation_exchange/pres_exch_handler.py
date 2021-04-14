@@ -234,8 +234,8 @@ async def filter_constraints(
             applicable = await filter_by_field(field, credential)
             if field.predicate == "required":
                 predicate = True
-            # if applicable:
-            #     break
+            if applicable:
+                break
         if not applicable:
             continue
 
