@@ -52,16 +52,18 @@ from .....wallet.in_memory import InMemoryWallet
 from .test_data import get_test_data
 
 
-@pytest.yield_fixture(scope='class')
+@pytest.yield_fixture(scope="class")
 def event_loop(request):
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
-@pytest.fixture(scope='class')
+
+@pytest.fixture(scope="class")
 async def setup_tuple():
     creds, pds = get_test_data()
     return creds, pds
+
 
 @pytest.fixture(scope="class")
 def profile():
@@ -73,6 +75,7 @@ def profile():
     context.injector.bind_instance(DocumentLoader, custom_document_loader)
     return profile
 
+
 @pytest.fixture(scope="class")
 async def suites(profile):
     wallet = InMemoryWallet(profile)
@@ -83,16 +86,16 @@ async def suites(profile):
     ed25519_verification_method = DIDKey.from_public_key_b58(
         ed25519_key_info.verkey, KeyType.ED25519
     ).key_id
-    
+
     edd_issuer_suite = Ed25519Signature2018(
         verification_method=ed25519_verification_method,
         key_pair=WalletKeyPair(
             wallet=wallet,
             key_type=KeyType.ED25519,
             public_key_base58=ed25519_key_info.verkey,
-        )
+        ),
     )
-    
+
     # private_key_base58 = "5D6Pa8dSwApdnfg7EZR8WnGfvLDCZPZGsZ5Y1ELL9VDj"
     # public_key_base58 = "oqpWYKaZD9M1Kbe94BVXpr8WTdFBNZyKv48cziTiQUeuhm7sBhCABMyYG4kcMrseC68YTFFgyhiNeBKjzdKk9MiRWuLv5H4FFujQsQK2KTAtzU8qTBiZqBHMmnLF4PL7Ytu"
     # profile.keys[public_key_base58] = {
@@ -117,7 +120,6 @@ async def suites(profile):
 
 
 class TestPresExchHandler:
-
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_load_cred_json(self, setup_tuple, profile, suites):
@@ -511,380 +513,510 @@ class TestPresExchHandler:
         for cred in tmp_vp["verifiableCredential"]:
             assert cred["issuer"] in [
                 "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa",
-                "did:example:489398593"
+                "did:example:489398593",
             ]
             assert cred["proof"]["type"] == "BbsBlsSignatureProof2020"
 
-    # @pytest.mark.asyncio
-    # async def test_filter_number_type_check(self, profile, cred_list):
-        # test_pd_min = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "minimum": 2
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_filter_number_type_check(self, profile, suites):
+        issue_suite, proof_suite = suites
+        test_creds = [
+            VCRecord.deserialize_jsonld_cred(
+                """
+                {
+                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+                    "id": "https://issuer.oidp.uscis.gov/credentials/83627465", 
+                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
+                    "issuer": "did:example:489398593", 
+                    "identifier": "83627465", 
+                    "name": "Permanent Resident Card", 
+                    "description": "Government of Example Permanent Resident Card.", 
+                    "issuanceDate": "2010-01-01T19:53:24Z", 
+                    "expirationDate": "2029-12-03T12:19:52Z", 
+                    "credentialSubject": {
+                        "id": "did:example:b34ca6cd37bbf23",
+                        "type": ["PermanentResident", "Person"], 
+                        "givenName": "JOHN", 
+                        "familyName": "SMITH", 
+                        "gender": "Male", 
+                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                        "residentSince": "2015-01-01", 
+                        "lprCategory": "C09", 
+                        "lprNumber": "999-999-999", 
+                        "commuterClassification": "C1", 
+                        "birthCountry": "Bahamas", 
+                        "birthDate": "1958-07-17",
+                        "test": 2
+                    }, 
+                    "proof": {
+                        "type": "BbsBlsSignature2020", 
+                        "verificationMethod": "did:example:489398593#test", 
+                        "created": "2021-04-13T23:23:56.045014", 
+                        "proofPurpose": "assertionMethod", 
+                        "proofValue": "rhD+4HOhPfLywBuhLYMi1i0kWa/L2Qipt+sqTRiebjoo4OF3ESoGnm+L4Movz128Mjns60H0Bz7W+aqN1dPP9uhU/FGBKW/LEIGJX1rrrYgn17CkWp46z/hwQy+8c9ulOCn0Yq3BDqB37euoBTZbOQ=="
+                    }
+                }
+                """
+            ),
+            VCRecord.deserialize_jsonld_cred(
+                """
+                {
+                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+                    "id": "https://issuer.oidp.uscis.gov/credentials/83627466", 
+                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
+                    "issuer": "did:example:489398593", 
+                    "identifier": "83627466", 
+                    "name": "Permanent Resident Card", 
+                    "description": "Government of Example Permanent Resident Card.", 
+                    "issuanceDate": "2010-01-01T19:53:24Z", 
+                    "expirationDate": "2029-12-03T12:19:52Z", 
+                    "credentialSubject": {
+                        "id": "did:example:b34ca6cd37bbf23",
+                        "type": ["PermanentResident", "Person"],
+                        "givenName": "Theodor",
+                        "familyName": "Major",
+                        "gender": "Male",
+                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                        "residentSince": "2017-01-01",
+                        "lprCategory": "C09",
+                        "lprNumber": "999-999-999",
+                        "commuterClassification": "C1",
+                        "birthCountry": "Canada",
+                        "birthDate": "1968-07-17",
+                        "test": 2
+                    }, 
+                    "proof": {
+                        "type": "BbsBlsSignature2020",
+                        "verificationMethod": "did:example:489398593#test",
+                        "created": "2021-04-13T23:33:05.798834",
+                        "proofPurpose": "assertionMethod",
+                        "proofValue": "jp8ahSYYFhRAk+1ahfG8qu7iEjQnEXp3P3fWgTrc4khxmw9/9mGACq67YW9r917/aKYTQcVyojelN3cBHrjBvaOzb7bZ6Ps0Wf6WFq1gc0QFUrdiN0mJRl5YAz8R16sLxrPsoS/8ji1MoabjqmlnWQ=="
+                    }
+                }
+                """
+            ),
+            VCRecord.deserialize_jsonld_cred(
+                """
+                {
+                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
+                    "id": "https://issuer.oidp.uscis.gov/credentials/83627467",
+                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
+                    "issuer": "did:example:489398593", 
+                    "identifier": "83627467", 
+                    "name": "Permanent Resident Card", 
+                    "description": "Government of Example Permanent Resident Card.", 
+                    "issuanceDate": "2010-01-01T19:53:24Z",
+                    "expirationDate": "2029-12-03T12:19:52Z", 
+                    "credentialSubject": {
+                        "id": "did:example:b34ca6cd37bbf33", 
+                        "type": ["PermanentResident", "Person"], 
+                        "givenName": "Cai", 
+                        "familyName": "Leblanc", 
+                        "gender": "Male", 
+                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                        "residentSince": "2015-01-01", 
+                        "lprCategory": "C09",
+                        "lprNumber": "999-999-9989",
+                        "commuterClassification": "C1",
+                        "birthCountry": "Canada", 
+                        "birthDate": "1975-07-17",
+                        "test": 3
+                    }, 
+                    "proof": {
+                        "type": "BbsBlsSignature2020",
+                        "verificationMethod": "did:example:489398593#test",
+                        "created": "2021-04-13T23:40:44.835154", 
+                        "proofPurpose":"assertionMethod",
+                        "proofValue": "t8+TPbYqF/dGlEn+qNnEFL1L0QeUjgXlYfJ7AelzOhb7cr2CjP/MIcG5bAQ5l6F2OZKNyE8RsPY14xedrkxpyv1oyWPmXzOwr0gt6ElLJm9jAUwFoZ7xAYHSedcR3Lh4FFuqmxfBHYF3A6VgSlMSfA=="
+                    }
+                }
+                """
+            ),
+        ]
+        test_pd_min = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "minimum": 2
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_min)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
-        # test_pd_max = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "maximum": 2
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        tmp_pd = PresentationDefinition.deserialize(test_pd_min)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 3
+        test_pd_max = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "maximum": 2
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_max)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
+        tmp_pd = PresentationDefinition.deserialize(test_pd_max)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 2
 
-        # test_pd_excl_min = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "exclusiveMinimum": 1.5
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        test_pd_excl_min = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "exclusiveMinimum": 1.5
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_excl_min)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
+        tmp_pd = PresentationDefinition.deserialize(test_pd_excl_min)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 3
 
-        # test_pd_excl_max = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "exclusiveMaximum": 2.5
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        test_pd_excl_max = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "exclusiveMaximum": 2.5
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_excl_max)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
+        tmp_pd = PresentationDefinition.deserialize(test_pd_excl_max)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 2
 
-        # test_pd_const = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "const": 2
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        test_pd_const = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "const": 2
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_const)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
+        tmp_pd = PresentationDefinition.deserialize(test_pd_const)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 2
 
-        # test_pd_enum = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number",
-        #                             "enum": [2, 2.0 , "test"]
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        test_pd_enum = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "enum": [2, 2.0 , "test"]
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_enum)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=InMemoryProfile.test_profile(),
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 2
+        tmp_pd = PresentationDefinition.deserialize(test_pd_enum)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 2
 
-        # test_pd_missing = """
-        #     {
-        #         "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-        #         "submission_requirements":[
-        #             {
-        #                 "name": "European Union Citizenship Proofs",
-        #                 "rule": "pick",
-        #                 "min": 1,
-        #                 "from": "A"
-        #             }
-        #         ],
-        #         "input_descriptors":[
-        #             {
-        #             "id":"citizenship_input_1",
-        #             "name":"EU Driver's License",
-        #             "group":[
-        #                 "A"
-        #             ],
-        #             "schema":[
-        #                 {
-        #                     "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        #                 }
-        #             ],
-        #             "constraints":{
-        #                 "fields":[
-        #                     {
-        #                         "path":[
-        #                             "$.credentialSubject.degree.test",
-        #                             "$.vc.credentialSubject.degree.test",
-        #                             "$.test"
-        #                         ],
-        #                         "purpose":"The claim must be from one of the specified issuers",
-        #                         "filter":{  
-        #                             "type": "number"
-        #                         }
-        #                     }
-        #                 ]
-        #             }
-        #             }
-        #         ]
-        #     }
-        # """
+        test_pd_missing = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "pick",
+                        "min": 1,
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                    "id":"citizenship_input_1",
+                    "name":"EU Driver's License",
+                    "group":[
+                        "A"
+                    ],
+                    "schema":[
+                        {
+                            "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                        }
+                    ],
+                    "constraints":{
+                        "fields":[
+                            {
+                                "path":[
+                                    "$.credentialSubject.test",
+                                    "$.vc.credentialSubject.test",
+                                    "$.test"
+                                ],
+                                "purpose":"The claim must be from one of the specified issuers",
+                                "filter":{  
+                                    "type": "number",
+                                    "enum": [2.5]
+                                }
+                            }
+                        ]
+                    }
+                    }
+                ]
+            }
+        """
 
-        # tmp_pd = PresentationDefinition.deserialize(test_pd_missing)
-        # tmp_vp = await create_vp(
-        #     credentials=cred_list,
-        #     pd=tmp_pd,
-        #     profile=profile,
-        #     challenge="1f44d55f-f161-4938-a659-f8026467f126",
-        # )
-        # assert len(tmp_vp["verifiableCredential"]) == 0
+        tmp_pd = PresentationDefinition.deserialize(test_pd_missing)
+        tmp_vp = await create_vp(
+            credentials=test_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 0
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
@@ -1286,7 +1418,12 @@ class TestPresExchHandler:
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
         tmp_cred = deepcopy(cred_list[0])
-        assert await credential_match_schema(tmp_cred, "https://www.w3.org/2018/credentials#VerifiableCredential") is True
+        assert (
+            await credential_match_schema(
+                tmp_cred, "https://www.w3.org/2018/credentials#VerifiableCredential"
+            )
+            is True
+        )
 
     @pytest.mark.asyncio
     async def test_merge_nested(self, setup_tuple, profile, suites):

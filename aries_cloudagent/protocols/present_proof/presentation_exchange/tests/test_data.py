@@ -626,74 +626,6 @@ pres_exch_datetime_minimum_met = """
 }
 """
 
-pres_exch_number_const_met = """
-{
-  "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
-  "submission_requirements":[
-    {
-      "name": "European Union Citizenship Proofs",
-      "rule": "pick",
-      "min": 1,
-      "from": "A"
-    }
-  ],
-  "format": {
-    "jwt": {
-      "alg": ["EdDSA", "ES256K", "ES384"]
-    },
-    "jwt_vc": {
-      "alg": ["ES256K", "ES384"]
-    },
-    "jwt_vp": {
-      "alg": ["EdDSA", "ES256K"]
-    },
-    "ldp_vc": {
-      "proof_type": [
-        "JsonWebSignature2020",
-        "Ed25519Signature2018",
-        "EcdsaSecp256k1Signature2019",
-        "RsaSignature2018"
-      ]
-    },
-    "ldp_vp": {
-      "proof_type": ["Ed25519Signature2018"]
-    },
-    "ldp": {
-      "proof_type": ["RsaSignature2018"]
-    }
-  },
-  "input_descriptors":[
-    {
-      "id":"citizenship_input_1",
-      "name":"EU Driver's License",
-      "group":[
-        "A"
-      ],
-      "schema":[
-        {
-          "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
-        }
-      ],
-      "constraints":{
-        "fields":[
-          {
-            "path":[
-              "$.credentialSubject.degree.test",
-              "$.vc.credentialSubject.degree.test",
-              "$.test"
-            ],
-            "purpose":"The claim must be from one of the specified issuers",
-            "filter":{
-              "enum": [2, 2.1, 2.2]
-            }
-          }
-        ]
-      }
-    }
-  ]
-}
-"""
-
 def get_test_data():
     creds_json_list = [
         cred_1,
@@ -711,7 +643,6 @@ def get_test_data():
         (pres_exch_multiple_srs_not_met, 0),
         (pres_exch_multiple_srs_met, 6),
         (pres_exch_datetime_minimum_met, 6),
-        # (pres_exch_number_const_met, 0),
         (pres_exch_nested_srs_a, 6),
         (pres_exch_nested_srs_b, 6),
     ]

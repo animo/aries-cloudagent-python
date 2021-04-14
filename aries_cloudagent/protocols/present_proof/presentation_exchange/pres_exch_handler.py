@@ -222,9 +222,8 @@ async def filter_constraints(
 
     result = []
     for credential in credentials:
-        if (
-            constraints.subject_issuer == "required"
-            and not await subject_is_issuer(credential=credential)
+        if constraints.subject_issuer == "required" and not await subject_is_issuer(
+            credential=credential
         ):
             continue
 
@@ -246,9 +245,7 @@ async def filter_constraints(
             new_credential_dict["type"] = credential_dict.get("type")
             new_credential_dict["@explicit"] = True
             new_credential_dict["id"] = credential_dict.get("id")
-            new_credential_dict["issuanceDate"] = credential_dict.get(
-                "issuanceDate"
-            )
+            new_credential_dict["issuanceDate"] = credential_dict.get("issuanceDate")
             unflatten_dict = {}
             for field in constraints._fields:
                 for path in field.paths:
@@ -857,7 +854,9 @@ async def create_vp(
     req = await make_requirement(
         srs=pd.submission_requirements, descriptors=pd.input_descriptors
     )
-    result = await apply_requirements(req=req, credentials=credentials, profile=profile, suite=derive_suite)
+    result = await apply_requirements(
+        req=req, credentials=credentials, profile=profile, suite=derive_suite
+    )
     applicable_creds, descriptor_maps = await merge(result)
     # convert list of verifiable credentials to list to dict
     applicable_creds_list = []
