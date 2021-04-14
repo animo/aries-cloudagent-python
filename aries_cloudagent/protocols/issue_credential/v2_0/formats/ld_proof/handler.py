@@ -3,7 +3,7 @@
 import logging
 from typing import Mapping
 
-from marshmallow import RAISE
+from marshmallow import EXCLUDE, INCLUDE
 
 from ......vc.vc_ld import (
     issue,
@@ -23,7 +23,7 @@ from ......vc.ld_proofs import (
     AuthenticationProofPurpose,
 )
 from ......vc.ld_proofs.constants import SECURITY_CONTEXT_BBS_URL
-from ......wallet.crypto import KeyType
+from ......wallet.key_type import KeyType
 from ......wallet.error import WalletNotFoundError
 from ......wallet.base import BaseWallet, DIDInfo
 from ......did.did_key import DIDKey
@@ -43,7 +43,7 @@ from ...messages.cred_issue import V20CredIssue
 from ...messages.cred_request import V20CredRequest
 from ...models.cred_ex_record import V20CredExRecord
 from ..handler import CredFormatAttachment, V20CredFormatError, V20CredFormatHandler
-from .models.cred_detail_schema import LDProofVCDetailSchema
+from .models.cred_detail import LDProofVCDetailSchema
 from .models.cred_detail import LDProofVCDetail
 from ...models.detail.ld_proof import V20CredExRecordLDProof
 
@@ -106,7 +106,7 @@ class LDProofCredFormatHandler(V20CredFormatHandler):
         Schema = mapping[message_type]
 
         # Validate, throw if not valid
-        Schema(unknown=RAISE).load(attachment_data)
+        Schema(unknown=EXCLUDE).load(attachment_data)
 
     async def _assert_can_issue_with_id_and_proof_type(
         self, issuer_id: str, proof_type: str
@@ -410,7 +410,7 @@ class LDProofCredFormatHandler(V20CredFormatHandler):
             cred_ex_record.cred_request
         ).attachment(self.format)
 
-        vc = VerifiableCredential.deserialize(cred_dict)
+        vc = VerifiableCredential.deserialize(cred_dict, unknown=INCLUDE)
         detail = LDProofVCDetail.deserialize(detail_dict)
 
         # Remove values from cred that are not part of detail
@@ -465,7 +465,7 @@ class LDProofCredFormatHandler(V20CredFormatHandler):
         ).attachment(self.format)
 
         # Deserialize objects
-        credential = VerifiableCredential.deserialize(cred_dict)
+        credential = VerifiableCredential.deserialize(cred_dict, unknown=INCLUDE)
 
         # Get signature suite, proof purpose and document loader
         suite = await self._get_suite(proof_type=credential.proof.type)
