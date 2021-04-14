@@ -26,140 +26,213 @@ from .....wallet.util import b58_to_bytes
 from .....wallet.in_memory import InMemoryWallet
 
 
-cred_json_1 = """
+cred_1 = """
 {
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1872",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
-      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
-  "issuanceDate": "2010-01-01T19:53:24Z",
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627465", 
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627465", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
+  "issuanceDate": "2010-01-01T19:53:24Z", 
+  "expirationDate": "2029-12-03T12:19:52Z", 
   "credentialSubject": {
-    "id": "did:example:123",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
-    }
+    "id": "did:example:b34ca6cd37bbf23",
+    "type": ["PermanentResident", "Person"], 
+    "givenName": "JOHN", 
+    "familyName": "SMITH", 
+    "gender": "Male", 
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+    "residentSince": "2015-01-01", 
+    "lprCategory": "C09", 
+    "lprNumber": "999-999-999", 
+    "commuterClassification": "C1", 
+    "birthCountry": "Bahamas", 
+    "birthDate": "1958-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020", 
+    "verificationMethod": "did:example:489398593#test", 
+    "created": "2021-04-13T23:23:56.045014", 
+    "proofPurpose": "assertionMethod", 
+    "proofValue": "rhD+4HOhPfLywBuhLYMi1i0kWa/L2Qipt+sqTRiebjoo4OF3ESoGnm+L4Movz128Mjns60H0Bz7W+aqN1dPP9uhU/FGBKW/LEIGJX1rrrYgn17CkWp46z/hwQy+8c9ulOCn0Yq3BDqB37euoBTZbOQ=="
   }
 }
 """
 
-cred_json_2 = """
+cred_2 = """
 {
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1873",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
-      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
-  "issuanceDate": "2010-01-01T19:53:24Z",
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627466", 
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627466", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
+  "issuanceDate": "2010-01-01T19:53:24Z", 
+  "expirationDate": "2029-12-03T12:19:52Z", 
   "credentialSubject": {
-    "id": "did:example:456",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
-    }
+    "id": "did:example:b34ca6cd37bbf23",
+    "type": ["PermanentResident", "Person"],
+    "givenName": "Theodor",
+    "familyName": "Major",
+    "gender": "Male",
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+    "residentSince": "2017-01-01",
+    "lprCategory": "C09",
+    "lprNumber": "999-999-999",
+    "commuterClassification": "C1",
+    "birthCountry": "Canada",
+    "birthDate": "1968-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020",
+    "verificationMethod": "did:example:489398593#test",
+    "created": "2021-04-13T23:33:05.798834",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "jp8ahSYYFhRAk+1ahfG8qu7iEjQnEXp3P3fWgTrc4khxmw9/9mGACq67YW9r917/aKYTQcVyojelN3cBHrjBvaOzb7bZ6Ps0Wf6WFq1gc0QFUrdiN0mJRl5YAz8R16sLxrPsoS/8ji1MoabjqmlnWQ=="
   }
 }
 """
 
-cred_json_3 = """
+cred_3 = """
 {
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
-  ],
-  "id": "http://example.edu/credentials/1874",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-  "issuer": {
-      "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-  },
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627467",
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627467", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
   "issuanceDate": "2010-01-01T19:53:24Z",
+  "expirationDate": "2029-12-03T12:19:52Z", 
   "credentialSubject": {
-    "id": "did:example:789",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
-    }
+    "id": "did:example:b34ca6cd37bbf33", 
+    "type": ["PermanentResident", "Person"], 
+    "givenName": "Cai", 
+    "familyName": "Leblanc", 
+    "gender": "Male", 
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+    "residentSince": "2015-01-01", 
+    "lprCategory": "C09",
+    "lprNumber": "999-999-9989",
+    "commuterClassification": "C1",
+    "birthCountry": "Canada", 
+    "birthDate": "1975-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020",
+    "verificationMethod": "did:example:489398593#test",
+    "created": "2021-04-13T23:40:44.835154", 
+    "proofPurpose":"assertionMethod",
+    "proofValue": "t8+TPbYqF/dGlEn+qNnEFL1L0QeUjgXlYfJ7AelzOhb7cr2CjP/MIcG5bAQ5l6F2OZKNyE8RsPY14xedrkxpyv1oyWPmXzOwr0gt6ElLJm9jAUwFoZ7xAYHSedcR3Lh4FFuqmxfBHYF3A6VgSlMSfA=="
   }
 }
 """
-cred_json_4 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1875",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:321",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
+
+cred_4 = """{
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627468",
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627468", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
+  "issuanceDate": "2010-01-01T19:53:24Z",
+  "expirationDate": "2029-12-03T12:19:52Z", 
+  "credentialSubject": {
+    "id": "did:example:b34ca6cd37bbf43", 
+    "type": ["PermanentResident", "Person"], 
+    "givenName": "Jamel", 
+    "familyName": "Huber",
+    "gender": "Female", 
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+    "residentSince": "2012-01-01", 
+    "lprCategory": "C09", 
+    "lprNumber": "999-999-000",
+    "commuterClassification": "C1", 
+    "birthCountry": "United States",
+    "birthDate": "1959-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020",
+    "verificationMethod": "did:example:489398593#test",
+    "created": "2021-04-13T23:50:55.908652",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "hN5JopRqXyCZNczB2tg/jRXoOel3QIGoYaJkEhzR5TrvABGXiavt4XxmwzPh/CNNKEH2yU34/q4yOz0m5blqgdrWeMoez+c2fu1oWThoSQRbxv+QSu1CQPAV2hn0KoLv1gpUpgRnDdpYfKyhPsk70Q=="
     }
+}
 """
 
-cred_json_5 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1876",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },      
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:654",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
-    }
+cred_5 = """
+{
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627469",
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627469", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
+  "issuanceDate": "2010-01-01T19:53:24Z", 
+  "expirationDate": "2029-12-03T12:19:52Z", 
+  "credentialSubject": {
+    "id": "did:example:b34ca6cd37bbf23",
+    "type": ["PermanentResident", "Person"],
+    "givenName": "Vivek",
+    "familyName": "Easton",
+    "gender": "Male",
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+    "residentSince": "2019-01-01",
+    "lprCategory": "C09",
+    "lprNumber": "999-999-888",
+    "commuterClassification": "C1",
+    "birthCountry": "India",
+    "birthDate": "1990-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020",
+    "verificationMethod": "did:example:489398593#test",
+    "created": "2021-04-14T00:10:42.070455",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "mNoC0IJ8r/LCpsQy0zfVvFSxJ2aGMsMEPsKhiew0pCbXicvloIGnkgtZz75kUrEENpr1bxEmm/VDaVywZjDULnpSmwAf+KKQcGPqsod6UjgyW5wutMM2K8/ug3kEh+16n0LPbqIeTiq7QzFzV+iwgA=="
+  }
+}
 """
-cred_json_6 = """
-    {
-      "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://w3id.org/security/bbs/v1",
-        "https://www.w3.org/2018/credentials/examples/v1"
-      ],
-      "id": "http://example.edu/credentials/1877",
-      "type": ["VerifiableCredential", "UniversityDegreeCredential"],
-      "issuer": {
-          "id": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"
-      },      
-      "issuanceDate": "2010-01-01T19:53:24Z",
-      "credentialSubject": {
-        "id": "did:example:987",
-        "degree": {
-          "type": "BachelorDegree",
-          "name": "Bachelor of Science and Arts"
-        }
-      }
-    }
+
+cred_6 = """
+{
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627470",
+  "type": ["VerifiableCredential", "PermanentResidentCard"], 
+  "issuer": "did:example:489398593", 
+  "identifier": "83627470", 
+  "name": "Permanent Resident Card", 
+  "description": "Government of Example Permanent Resident Card.", 
+  "issuanceDate": "2010-01-01T19:53:24Z", 
+  "expirationDate": "2029-12-03T12:19:52Z", 
+  "credentialSubject": {
+    "id": "did:example:b34ca6cd37bbf23", 
+    "type": ["PermanentResident", "Person"], 
+    "givenName": "Ralphie", 
+    "familyName": "Jennings", 
+    "gender": "Female", 
+    "image": "data:image/png;base64,iVBORw0KGgokJggg==", 
+    "residentSince": "2010-01-01", 
+    "lprCategory": "C09", 
+    "lprNumber": "999-999-777", 
+    "commuterClassification": "C1", 
+    "birthCountry": "Canada", 
+    "birthDate": "1980-07-17"
+  }, 
+  "proof": {
+    "type": "BbsBlsSignature2020",
+    "verificationMethod": "did:example:489398593#test",
+    "created": "2021-04-14T00:20:16.276326",
+    "proofPurpose": "assertionMethod", 
+    "proofValue": "oBbXUmZD9HqGXi2ODpQIHE0KHp7IUkvn2+HVHEmwP0BQAsaUIlTsoSgNPpzYiYYtHCbqUusVvCquIVaUA6MQVuf1SeGLw94z5u2P+m5BAw1PEXYaJxQDHxw+egjQ5eRxAxS9AzOFwg/luBrkSjEoiw=="
+  }
+}
 """
 
 pres_exch_nested_srs_a = """
@@ -203,12 +276,13 @@ pres_exch_nested_srs_a = """
           {
             "path":[
               "$.issuer.id",
+              "$.issuer",
               "$.vc.issuer.id"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
+              "enum": ["did:example:489398593"]
             }
           }
         ]
@@ -286,6 +360,7 @@ pres_exch_nested_srs_b = """
           {
             "path":[
               "$.issuer.id",
+              "$.issuer",
               "$.vc.issuer.id"
             ],
             "purpose":"The claim must be from one of the specified issuers",
@@ -362,12 +437,13 @@ pres_exch_multiple_srs_not_met = """
           {
             "path":[
               "$.issuer.id",
-              "$.vc.issuer.id"
+              "$.vc.issuer.id",
+              "$.issuer"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
+              "enum": ["did:example:489398593"]
             }
           }
         ]
@@ -437,11 +513,12 @@ pres_exch_multiple_srs_met = """
           {
             "path":[
               "$.issuer.id",
-              "$.vc.issuer.id"
+              "$.vc.issuer.id",
+              "$.issuer"
             ],
             "filter":{
               "type":"string",
-              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa"]
+              "enum": ["did:example:489398593"]
             }
           }
         ]
@@ -506,12 +583,13 @@ pres_exch_datetime_minimum_met = """
           {
             "path":[
               "$.issuer.id",
-              "$.vc.issuer.id"
+              "$.vc.issuer.id",
+              "$.issuer"
             ],
             "purpose":"The claim must be from one of the specified issuers",
             "filter":{
               "type":"string",
-              "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"]
+              "enum": ["did:example:489398593", "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"]
             }
           }
         ]
@@ -616,83 +694,14 @@ pres_exch_number_const_met = """
 }
 """
 
-def make_profile():
-    profile = InMemoryProfile.test_profile()
-    context = profile.context
-    did_resolver_registry = DIDResolverRegistry()
-    context.injector.bind_instance(DIDResolverRegistry, did_resolver_registry)
-    context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
-    context.injector.bind_instance(DocumentLoader, custom_document_loader)
-    return profile
-
-@pytest.mark.asyncio
-@pytest.mark.ursa_bbs_signatures
-async def get_test_data():
-    profile = make_profile()
-    wallet = InMemoryWallet(profile)
-
-    ed25519_key_info = await wallet.create_signing_key(
-        key_type=KeyType.ED25519, seed="testseed000000000000000000000002"
-    )
-    ed25519_verification_method = DIDKey.from_public_key_b58(
-        ed25519_key_info.verkey, KeyType.ED25519
-    ).key_id
-    bls12381g2_key_info = await wallet.create_signing_key(
-      key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000001"
-    )
-    bls12381g2_verification_method = DIDKey.from_public_key_b58(
-        bls12381g2_key_info.verkey, KeyType.BLS12381G2
-    ).key_id
-
-    bls_issuer_suite = BbsBlsSignature2020(
-        verification_method=bls12381g2_verification_method,
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
-        )
-    )
-    edd_issuer_suite = Ed25519Signature2018(
-        verification_method=ed25519_verification_method,
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.ED25519,
-            public_key_base58=ed25519_key_info.verkey,
-        )
-    )
-    bls_proof_suite = BbsBlsSignatureProof2020(
-        key_pair=WalletKeyPair(
-            wallet=wallet,
-            key_type=KeyType.BLS12381G2,
-            public_key_base58=bls12381g2_key_info.verkey,
-        ),
-    )
-
+def get_test_data():
     creds_json_list = [
-        json.dumps(await issue(credential=json.loads(cred_json_1), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_2), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_3), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_4), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_5), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
-        json.dumps(await issue(credential=json.loads(cred_json_6), 
-                    suite=bls_issuer_suite, 
-                    document_loader=custom_document_loader
-              )),
+        cred_1,
+        cred_2,
+        cred_3,
+        cred_4,
+        cred_5,
+        cred_6,
     ]
 
     vc_record_list = []
@@ -702,7 +711,7 @@ async def get_test_data():
         (pres_exch_multiple_srs_not_met, 0),
         (pres_exch_multiple_srs_met, 6),
         (pres_exch_datetime_minimum_met, 6),
-        (pres_exch_number_const_met, 0),
+        # (pres_exch_number_const_met, 0),
         (pres_exch_nested_srs_a, 6),
         (pres_exch_nested_srs_b, 6),
     ]
@@ -716,4 +725,4 @@ async def get_test_data():
             )
         )
     # Returns VCRecords, PDsList, profile and suites for PresExch Tests
-    return (vc_record_list, pd_list, profile, edd_issuer_suite, bls_proof_suite)
+    return (vc_record_list, pd_list)
