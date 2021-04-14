@@ -240,40 +240,8 @@ async def filter_constraints(
 
         if constraints.limit_disclosure:
             credential_dict = json.loads(credential.cred_value)
-            new_credential_dict = {}
-            new_credential_dict["@context"] = credential_dict.get("@context")
-            new_credential_dict["type"] = credential_dict.get("type")
-            new_credential_dict["@explicit"] = True
-            new_credential_dict["id"] = credential_dict.get("id")
-            new_credential_dict["issuanceDate"] = credential_dict.get("issuanceDate")
-            unflatten_dict = {}
-            for field in constraints._fields:
-                for path in field.paths:
-                    jsonpath = parse(path)
-                    match = jsonpath.find(credential_dict)
-                    if len(match) == 0:
-                        continue
-                    for match_item in match:
-                        full_path = str(match_item.full_path)
-                        if bool(re.search(pattern=r"\[[0-9]+\]", string=full_path)):
-                            full_path = full_path.replace(".[", "[")
-                        unflatten_dict[full_path] = {}
-                        explicit_key_path = None
-                        key_list = full_path.split(".")[:-1]
-                        for key in key_list:
-                            if not explicit_key_path:
-                                explicit_key_path = key
-                            else:
-                                explicit_key_path = explicit_key_path + "." + key
-                            unflatten_dict[explicit_key_path + ".@explicit"] = True
-            new_credential_dict = new_credential_builder(
-                new_credential_dict, unflatten_dict
-            )
-            if "credentialSubject" not in new_credential_dict:
-                if isinstance(credential_dict.get("credentialSubject"), list):
-                    new_credential_dict["credentialSubject"] = []
-                elif isinstance(credential_dict.get("credentialSubject"), dict):
-                    new_credential_dict["credentialSubject"] = {}
+            new_credential_dict = reveal_doc(credential_dict=credential_dict, constraints=constraints)
+            
             # Using custom_document_loader for testing
             signed_new_credential_dict = await derive_credential(
                 credential=credential_dict,
@@ -287,7 +255,41 @@ async def filter_constraints(
         result.append(credential)
     return result
 
-
+def reveal_doc(credential_dict: dict, constraints: Constraints):
+    new_credential_dict = {}
+    new_credential_dict["@context"] = credential_dict.get("@context")
+    new_credential_dict["type"] = credential_dict.get("type")
+    new_credential_dict["@explicit"] = True
+    new_credential_dict["issuanceDate"] = credential_dict.get("issuanceDate")
+    unflatten_dict = {}
+    for field in constraints._fields:
+        for path in field.paths:
+            jsonpath = parse(path)
+            match = jsonpath.find(credential_dict)
+            if len(match) == 0:
+                continue
+            for match_item in match:
+                full_path = str(match_item.full_path)
+                if bool(re.search(pattern=r"\[[0-9]+\]", string=full_path)):
+                    full_path = full_path.replace(".[", "[")
+                unflatten_dict[full_path] = {}
+                explicit_key_path = None
+                key_list = full_path.split(".")[:-1]
+                for key in key_list:
+                    if not explicit_key_path:
+                        explicit_key_path = key
+                    else:
+                        explicit_key_path = explicit_key_path + "." + key
+                    unflatten_dict[explicit_key_path + ".@explicit"] = True
+    new_credential_dict = new_credential_builder(
+        new_credential_dict, unflatten_dict
+    )
+    if "credentialSubject" not in new_credential_dict:
+        if isinstance(credential_dict.get("credentialSubject"), list):
+            new_credential_dict["credentialSubject"] = []
+        elif isinstance(credential_dict.get("credentialSubject"), dict):
+            new_credential_dict["credentialSubject"] = {}
+    return new_credential_dict
 def new_credential_builder(new_credential: dict, unflatten_dict: dict) -> dict:
     """
     Update and return the new_credential.

@@ -15,6 +15,7 @@ from ..pres_exch import (
     Requirement,
     Filter,
     SchemaInputDescriptor,
+    Constraints,
 )
 from ..pres_exch_handler import (
     make_requirement,
@@ -27,6 +28,7 @@ from ..pres_exch_handler import (
     pattern_check,
     subject_is_issuer,
     filter_schema,
+    reveal_doc,
     credential_match_schema,
     is_numeric,
     merge_nested_results,
@@ -44,6 +46,12 @@ from .....vc.ld_proofs import (
 from .....vc.ld_proofs.document_loader import DocumentLoader
 from .....vc.tests.document_loader import custom_document_loader
 from .....vc.vc_ld.issue import issue
+from .....vc.ld_proofs import derive
+from .....vc.tests.data import (
+    BBS_VC_REVEAL_DOCUMENT_MATTR,
+    BBS_SIGNED_VC_MATTR,
+    BBS_NESTED_VC_REVEAL_DOCUMENT_MATTR,
+)
 from .....wallet.base import BaseWallet
 from .....wallet.crypto import KeyType
 from .....wallet.util import b58_to_bytes
@@ -58,12 +66,10 @@ def event_loop(request):
     yield loop
     loop.close()
 
-
 @pytest.fixture(scope="class")
 async def setup_tuple():
     creds, pds = get_test_data()
     return creds, pds
-
 
 @pytest.fixture(scope="class")
 def profile():
@@ -74,7 +80,6 @@ def profile():
     context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
     context.injector.bind_instance(DocumentLoader, custom_document_loader)
     return profile
-
 
 @pytest.fixture(scope="class")
 async def suites(profile):
@@ -96,15 +101,6 @@ async def suites(profile):
         ),
     )
 
-    # private_key_base58 = "5D6Pa8dSwApdnfg7EZR8WnGfvLDCZPZGsZ5Y1ELL9VDj"
-    # public_key_base58 = "oqpWYKaZD9M1Kbe94BVXpr8WTdFBNZyKv48cziTiQUeuhm7sBhCABMyYG4kcMrseC68YTFFgyhiNeBKjzdKk9MiRWuLv5H4FFujQsQK2KTAtzU8qTBiZqBHMmnLF4PL7Ytu"
-    # profile.keys[public_key_base58] = {
-    #     "seed": "testseed000000000000000000000001",
-    #     "secret": b58_to_bytes(private_key_base58),
-    #     "verkey": public_key_base58,
-    #     "metadata": {},
-    #     "key_type": KeyType.BLS12381G2,
-    # }
     bls12381g2_key_info = await wallet.create_signing_key(
         key_type=KeyType.BLS12381G2, seed="testseed000000000000000000000001"
     )
@@ -516,6 +512,171 @@ class TestPresExchHandler:
                 "did:example:489398593",
             ]
             assert cred["proof"]["type"] == "BbsBlsSignatureProof2020"
+
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_reveal_doc_a(self, suites):
+        issue_suite, proof_suite = suites
+        test_constraint = {
+            "limit_disclosure": "required",
+            "fields":[
+                {
+                    "path":[
+                        "$.credentialSubject.givenName"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "JOHN"
+                    }
+                },
+                {
+                    "path":[
+                        "$.credentialSubject.familyName"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "SMITH"
+                    }
+                },
+                {
+                    "path":[
+                        "$.credentialSubject.type"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "enum": ["PermanentResident", "Person"]
+                    }
+                },
+                {
+                    "path":[
+                        "$.credentialSubject.gender"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "Male"                                    
+                    }
+                }
+            ]  
+        }
+
+        test_constraint = Constraints.deserialize(test_constraint)
+        tmp_reveal_doc = reveal_doc(
+            credential_dict=BBS_SIGNED_VC_MATTR,
+            constraints=test_constraint
+        )
+        derived = await derive(
+            document=BBS_SIGNED_VC_MATTR,
+            reveal_document=tmp_reveal_doc,
+            suite=proof_suite,
+            document_loader=custom_document_loader,
+        )
+        assert derived
+
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_reveal_doc_b(self, suites):
+        issue_suite, proof_suite = suites
+
+        test_credential = {
+            "@context": ["https://www.w3.org/2018/credentials/v1", "https://www.w3.org/2018/credentials/examples/v1", "https://w3id.org/security/bbs/v1"], 
+            "id": "https://example.gov/credentials/3732", 
+            "issuer": "did:example:489398593", 
+            "type": ["VerifiableCredential", "UniversityDegreeCredential"], 
+            "issuanceDate": "2020-03-10T04:24:12.164Z",
+            "credentialSubject": {
+                "id": "did:example:489398593",
+                "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts", "degreeType": "Underwater Basket Weaving"},
+                "college": "Contoso University"
+            }, 
+            "proof": {
+                "type": "BbsBlsSignature2020", 
+                "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", 
+                "created": "2021-04-14T15:56:26.427788", 
+                "proofPurpose": "assertionMethod", 
+                "proofValue": "q86pBug3pGMMXq0RE6jfQnk8HaIfM4lb9dQAnKM4aUkT64x/f/65tfnzooeVPf+vXR9a2TVParet6RKWVHVb1QB+GJMWglBy29iEz2tK8H8qYqLtRHMA3YCAQ/aynHKekSsURq+1c2RTEsX27G0hVA=="
+            }
+        }
+
+        test_constraint = {
+            "limit_disclosure": "required",
+            "fields":[
+                {
+                    "path":[
+                        "$.credentialSubject.degree.name"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "Bachelor of Science and Arts"
+                    }
+                },
+            ]  
+        }
+        test_constraint = Constraints.deserialize(test_constraint)
+        tmp_reveal_doc = reveal_doc(
+            credential_dict=test_credential,
+            constraints=test_constraint
+        )
+        assert tmp_reveal_doc == BBS_NESTED_VC_REVEAL_DOCUMENT_MATTR
+        derived = await derive(
+            document=test_credential,
+            reveal_document=tmp_reveal_doc,
+            suite=proof_suite,
+            document_loader=custom_document_loader,
+        )
+        assert derived
+
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_reveal_doc_c(self, setup_tuple, suites):
+        cred_list, pd_list = setup_tuple
+        issue_suite, proof_suite = suites
+
+        test_constraint = {
+            "limit_disclosure": "required",
+            "fields":[
+                {
+                    "path":[
+                        "$.credentialSubject.givenName"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "Cai"
+                    }
+                },
+                {
+                    "path":[
+                        "$.credentialSubject.familyName"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "Leblanc"
+                    }
+                },
+                {
+                    "path":[
+                        "$.credentialSubject.gender"
+                    ],
+                    "filter":{
+                        "type":"string",
+                        "const": "Male"
+                    }
+                }
+            ]  
+        }
+
+        test_constraint = Constraints.deserialize(test_constraint)
+        test_cred = json.loads(cred_list[2].cred_value)
+        tmp_reveal_doc = reveal_doc(
+            credential_dict=test_cred,
+            constraints=test_constraint
+        )
+        derived = await derive(
+            document=test_cred,
+            reveal_document=tmp_reveal_doc,
+            suite=proof_suite,
+            document_loader=custom_document_loader,
+        )
+        assert derived
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
