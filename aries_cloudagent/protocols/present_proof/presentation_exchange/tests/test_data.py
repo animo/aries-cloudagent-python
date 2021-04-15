@@ -25,6 +25,218 @@ from .....wallet.crypto import KeyType
 from .....wallet.util import b58_to_bytes
 from .....wallet.in_memory import InMemoryWallet
 
+bbs_bls_number_filter_creds = [
+    VCRecord.deserialize_jsonld_cred(
+        """
+        {
+            "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+            "id": "https://issuer.oidp.uscis.gov/credentials/83627465", 
+            "type": ["VerifiableCredential", "PermanentResidentCard"], 
+            "issuer": "did:example:489398593", 
+            "identifier": "83627465", 
+            "name": "Permanent Resident Card", 
+            "description": "Government of Example Permanent Resident Card.", 
+            "issuanceDate": "2010-01-01T19:53:24Z", 
+            "expirationDate": "2029-12-03T12:19:52Z", 
+            "credentialSubject": {
+                "id": "did:example:b34ca6cd37bbf23",
+                "type": ["PermanentResident", "Person"], 
+                "givenName": "JOHN", 
+                "familyName": "SMITH", 
+                "gender": "Male", 
+                "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                "residentSince": "2015-01-01", 
+                "lprCategory": "C09", 
+                "lprNumber": "999-999-999", 
+                "commuterClassification": "C1", 
+                "birthCountry": "Bahamas", 
+                "birthDate": "1958-07-17",
+                "test": 2
+            }, 
+            "proof": {
+                "type": "BbsBlsSignature2020", 
+                "verificationMethod": "did:example:489398593#test", 
+                "created": "2021-04-13T23:23:56.045014", 
+                "proofPurpose": "assertionMethod", 
+                "proofValue": "rhD+4HOhPfLywBuhLYMi1i0kWa/L2Qipt+sqTRiebjoo4OF3ESoGnm+L4Movz128Mjns60H0Bz7W+aqN1dPP9uhU/FGBKW/LEIGJX1rrrYgn17CkWp46z/hwQy+8c9ulOCn0Yq3BDqB37euoBTZbOQ=="
+            }
+        }
+        """
+    ),
+    VCRecord.deserialize_jsonld_cred(
+        """
+        {
+            "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
+            "id": "https://issuer.oidp.uscis.gov/credentials/83627466", 
+            "type": ["VerifiableCredential", "PermanentResidentCard"], 
+            "issuer": "did:example:489398593", 
+            "identifier": "83627466", 
+            "name": "Permanent Resident Card", 
+            "description": "Government of Example Permanent Resident Card.", 
+            "issuanceDate": "2010-01-01T19:53:24Z", 
+            "expirationDate": "2029-12-03T12:19:52Z", 
+            "credentialSubject": {
+                "id": "did:example:b34ca6cd37bbf23",
+                "type": ["PermanentResident", "Person"],
+                "givenName": "Theodor",
+                "familyName": "Major",
+                "gender": "Male",
+                "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                "residentSince": "2017-01-01",
+                "lprCategory": "C09",
+                "lprNumber": "999-999-999",
+                "commuterClassification": "C1",
+                "birthCountry": "Canada",
+                "birthDate": "1968-07-17",
+                "test": 2
+            }, 
+            "proof": {
+                "type": "BbsBlsSignature2020",
+                "verificationMethod": "did:example:489398593#test",
+                "created": "2021-04-13T23:33:05.798834",
+                "proofPurpose": "assertionMethod",
+                "proofValue": "jp8ahSYYFhRAk+1ahfG8qu7iEjQnEXp3P3fWgTrc4khxmw9/9mGACq67YW9r917/aKYTQcVyojelN3cBHrjBvaOzb7bZ6Ps0Wf6WFq1gc0QFUrdiN0mJRl5YAz8R16sLxrPsoS/8ji1MoabjqmlnWQ=="
+            }
+        }
+        """
+    ),
+    VCRecord.deserialize_jsonld_cred(
+        """
+        {
+            "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
+            "id": "https://issuer.oidp.uscis.gov/credentials/83627467",
+            "type": ["VerifiableCredential", "PermanentResidentCard"], 
+            "issuer": "did:example:489398593", 
+            "identifier": "83627467", 
+            "name": "Permanent Resident Card", 
+            "description": "Government of Example Permanent Resident Card.", 
+            "issuanceDate": "2010-01-01T19:53:24Z",
+            "expirationDate": "2029-12-03T12:19:52Z", 
+            "credentialSubject": {
+                "id": "did:example:b34ca6cd37bbf33", 
+                "type": ["PermanentResident", "Person"], 
+                "givenName": "Cai", 
+                "familyName": "Leblanc", 
+                "gender": "Male", 
+                "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+                "residentSince": "2015-01-01", 
+                "lprCategory": "C09",
+                "lprNumber": "999-999-9989",
+                "commuterClassification": "C1",
+                "birthCountry": "Canada", 
+                "birthDate": "1975-07-17",
+                "test": 3
+            }, 
+            "proof": {
+                "type": "BbsBlsSignature2020",
+                "verificationMethod": "did:example:489398593#test",
+                "created": "2021-04-13T23:40:44.835154", 
+                "proofPurpose":"assertionMethod",
+                "proofValue": "t8+TPbYqF/dGlEn+qNnEFL1L0QeUjgXlYfJ7AelzOhb7cr2CjP/MIcG5bAQ5l6F2OZKNyE8RsPY14xedrkxpyv1oyWPmXzOwr0gt6ElLJm9jAUwFoZ7xAYHSedcR3Lh4FFuqmxfBHYF3A6VgSlMSfA=="
+            }
+        }
+        """
+    ),
+]
+
+edd_jsonld_creds = [
+    VCRecord.deserialize_jsonld_cred(json.dumps({
+        "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1"], 
+        "id": "https://issuer.oidp.uscis.gov/credentials/83627465", 
+        "type": ["VerifiableCredential", "PermanentResidentCard"], 
+        "issuer": "did:example:489398593", 
+        "identifier": "83627465", 
+        "name": "Permanent Resident Card", 
+        "description": "Government of Example Permanent Resident Card.", 
+        "issuanceDate": "2010-01-01T19:53:24Z", 
+        "expirationDate": "2029-12-03T12:19:52Z", 
+        "credentialSubject": {
+            "id": "did:example:b34ca6cd37bbf23", 
+            "type": ["PermanentResident", "Person"], 
+            "givenName": "JOHN", 
+            "familyName": "SMITH", 
+            "gender": "Male", 
+            "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+            "residentSince": "2015-01-01",
+            "lprCategory": "C09", 
+            "lprNumber": "999-999-999", 
+            "commuterClassification": "C1", 
+            "birthCountry": "Bahamas",
+            "birthDate": "1958-07-17"
+        }, 
+        "proof": {
+            "type": "Ed25519Signature2018", 
+            "verificationMethod": "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL", 
+            "created": "2021-04-14T23:12:56.395319",
+            "proofPurpose": "assertionMethod", 
+            "jws": "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0IjogWyJiNjQiXX0..z274d6OdDbyzokrlkiWNgfFSPA1kOR9E38Gt3TueveeVa1kSaDEkGhPsnXEyof3ZjhCANHhyfRlHytZjvhGcAA"
+        }
+    })),
+    VCRecord.deserialize_jsonld_cred(json.dumps({
+        "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1"], 
+        "id": "https://issuer.oidp.uscis.gov/credentials/83627466", 
+        "type": ["VerifiableCredential", "PermanentResidentCard"], 
+        "issuer": "did:example:489398593", 
+        "identifier": "83627466", 
+        "name": "Permanent Resident Card",
+        "description": "Government of Example Permanent Resident Card.", 
+        "issuanceDate": "2010-01-01T19:53:24Z", 
+        "expirationDate": "2029-12-03T12:19:52Z", 
+        "credentialSubject": {
+            "id": "did:example:b34ca6cd37bbf23", 
+            "type": ["PermanentResident", "Person"], 
+            "givenName": "Theodor", 
+            "familyName": "Major",
+            "gender": "Male", 
+            "image": "data:image/png;base64,iVBORw0KGgokJggg==", 
+            "residentSince": "2017-01-01", 
+            "lprCategory": "C09", 
+            "lprNumber": "999-999-999", 
+            "commuterClassification": "C1", 
+            "birthCountry": "Canada", 
+            "birthDate": "1968-07-17"
+        }, 
+        "proof": {
+            "type": "Ed25519Signature2018", 
+            "verificationMethod": "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL", 
+            "created": "2021-04-14T23:25:50.902717",
+            "proofPurpose": "assertionMethod", 
+            "jws": "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0IjogWyJiNjQiXX0..Zm9PlsFS-M_Y35AFNEeY_79NwgsCEUmtt8dBScePqYU-6K4AA_8TcmYAiOaxTY5jzIN8iWuH7HgHugMh612yDg"
+        }
+    })),
+    VCRecord.deserialize_jsonld_cred(json.dumps({
+        "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1"], 
+        "id": "https://issuer.oidp.uscis.gov/credentials/83627467", 
+        "type": ["VerifiableCredential", "PermanentResidentCard"], 
+        "issuer": "did:example:489398593", 
+        "identifier": "83627467", 
+        "name": "Permanent Resident Card", 
+        "description": "Government of Example Permanent Resident Card.", 
+        "issuanceDate": "2010-01-01T19:53:24Z", 
+        "expirationDate": "2029-12-03T12:19:52Z", 
+        "credentialSubject": {
+            "id": "did:example:b34ca6cd37bbf33", 
+            "type": ["PermanentResident", "Person"], 
+            "givenName": "Cai", 
+            "familyName": "Leblanc", 
+            "gender": "Male", 
+            "image": "data:image/png;base64,iVBORw0KGgokJggg==", 
+            "residentSince": "2015-01-01", 
+            "lprCategory": "C09", 
+            "lprNumber": "999-999-9989", 
+            "commuterClassification": "C1", 
+            "birthCountry": "Canada", 
+            "birthDate": "1975-07-17"
+        }, 
+        "proof": {
+            "type": "Ed25519Signature2018", 
+            "verificationMethod": "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL", 
+            "created": "2021-04-14T23:32:44.938165", 
+            "proofPurpose": "assertionMethod", 
+            "jws": "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0IjogWyJiNjQiXX0..jp9oGHEfZJw2MiK0M_3PAJX3U1OLrFEreWvUXRX6Vym911mrjILtl6Im59hijUXWqyKH-dh1McmUrFSGwzudAw"
+        }
+    }))
+]           
 
 cred_1 = """
 {

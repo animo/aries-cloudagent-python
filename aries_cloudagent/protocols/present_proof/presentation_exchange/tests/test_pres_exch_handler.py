@@ -44,6 +44,7 @@ from .....vc.ld_proofs import (
     Ed25519Signature2018,
 )
 from .....vc.ld_proofs.document_loader import DocumentLoader
+from .....vc.ld_proofs.error import LinkedDataProofException
 from .....vc.tests.document_loader import custom_document_loader
 from .....vc.vc_ld.issue import issue
 from .....vc.ld_proofs import derive
@@ -57,7 +58,7 @@ from .....wallet.crypto import KeyType
 from .....wallet.util import b58_to_bytes
 from .....wallet.in_memory import InMemoryWallet
 
-from .test_data import get_test_data
+from .test_data import get_test_data, edd_jsonld_creds, bbs_bls_number_filter_creds
 
 
 @pytest.yield_fixture(scope="class")
@@ -682,119 +683,7 @@ class TestPresExchHandler:
     @pytest.mark.ursa_bbs_signatures
     async def test_filter_number_type_check(self, profile, suites):
         issue_suite, proof_suite = suites
-        test_creds = [
-            VCRecord.deserialize_jsonld_cred(
-                """
-                {
-                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
-                    "id": "https://issuer.oidp.uscis.gov/credentials/83627465", 
-                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
-                    "issuer": "did:example:489398593", 
-                    "identifier": "83627465", 
-                    "name": "Permanent Resident Card", 
-                    "description": "Government of Example Permanent Resident Card.", 
-                    "issuanceDate": "2010-01-01T19:53:24Z", 
-                    "expirationDate": "2029-12-03T12:19:52Z", 
-                    "credentialSubject": {
-                        "id": "did:example:b34ca6cd37bbf23",
-                        "type": ["PermanentResident", "Person"], 
-                        "givenName": "JOHN", 
-                        "familyName": "SMITH", 
-                        "gender": "Male", 
-                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
-                        "residentSince": "2015-01-01", 
-                        "lprCategory": "C09", 
-                        "lprNumber": "999-999-999", 
-                        "commuterClassification": "C1", 
-                        "birthCountry": "Bahamas", 
-                        "birthDate": "1958-07-17",
-                        "test": 2
-                    }, 
-                    "proof": {
-                        "type": "BbsBlsSignature2020", 
-                        "verificationMethod": "did:example:489398593#test", 
-                        "created": "2021-04-13T23:23:56.045014", 
-                        "proofPurpose": "assertionMethod", 
-                        "proofValue": "rhD+4HOhPfLywBuhLYMi1i0kWa/L2Qipt+sqTRiebjoo4OF3ESoGnm+L4Movz128Mjns60H0Bz7W+aqN1dPP9uhU/FGBKW/LEIGJX1rrrYgn17CkWp46z/hwQy+8c9ulOCn0Yq3BDqB37euoBTZbOQ=="
-                    }
-                }
-                """
-            ),
-            VCRecord.deserialize_jsonld_cred(
-                """
-                {
-                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"], 
-                    "id": "https://issuer.oidp.uscis.gov/credentials/83627466", 
-                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
-                    "issuer": "did:example:489398593", 
-                    "identifier": "83627466", 
-                    "name": "Permanent Resident Card", 
-                    "description": "Government of Example Permanent Resident Card.", 
-                    "issuanceDate": "2010-01-01T19:53:24Z", 
-                    "expirationDate": "2029-12-03T12:19:52Z", 
-                    "credentialSubject": {
-                        "id": "did:example:b34ca6cd37bbf23",
-                        "type": ["PermanentResident", "Person"],
-                        "givenName": "Theodor",
-                        "familyName": "Major",
-                        "gender": "Male",
-                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
-                        "residentSince": "2017-01-01",
-                        "lprCategory": "C09",
-                        "lprNumber": "999-999-999",
-                        "commuterClassification": "C1",
-                        "birthCountry": "Canada",
-                        "birthDate": "1968-07-17",
-                        "test": 2
-                    }, 
-                    "proof": {
-                        "type": "BbsBlsSignature2020",
-                        "verificationMethod": "did:example:489398593#test",
-                        "created": "2021-04-13T23:33:05.798834",
-                        "proofPurpose": "assertionMethod",
-                        "proofValue": "jp8ahSYYFhRAk+1ahfG8qu7iEjQnEXp3P3fWgTrc4khxmw9/9mGACq67YW9r917/aKYTQcVyojelN3cBHrjBvaOzb7bZ6Ps0Wf6WFq1gc0QFUrdiN0mJRl5YAz8R16sLxrPsoS/8ji1MoabjqmlnWQ=="
-                    }
-                }
-                """
-            ),
-            VCRecord.deserialize_jsonld_cred(
-                """
-                {
-                    "@context": ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/citizenship/v1", "https://w3id.org/security/bbs/v1"],
-                    "id": "https://issuer.oidp.uscis.gov/credentials/83627467",
-                    "type": ["VerifiableCredential", "PermanentResidentCard"], 
-                    "issuer": "did:example:489398593", 
-                    "identifier": "83627467", 
-                    "name": "Permanent Resident Card", 
-                    "description": "Government of Example Permanent Resident Card.", 
-                    "issuanceDate": "2010-01-01T19:53:24Z",
-                    "expirationDate": "2029-12-03T12:19:52Z", 
-                    "credentialSubject": {
-                        "id": "did:example:b34ca6cd37bbf33", 
-                        "type": ["PermanentResident", "Person"], 
-                        "givenName": "Cai", 
-                        "familyName": "Leblanc", 
-                        "gender": "Male", 
-                        "image": "data:image/png;base64,iVBORw0KGgokJggg==",
-                        "residentSince": "2015-01-01", 
-                        "lprCategory": "C09",
-                        "lprNumber": "999-999-9989",
-                        "commuterClassification": "C1",
-                        "birthCountry": "Canada", 
-                        "birthDate": "1975-07-17",
-                        "test": 3
-                    }, 
-                    "proof": {
-                        "type": "BbsBlsSignature2020",
-                        "verificationMethod": "did:example:489398593#test",
-                        "created": "2021-04-13T23:40:44.835154", 
-                        "proofPurpose":"assertionMethod",
-                        "proofValue": "t8+TPbYqF/dGlEn+qNnEFL1L0QeUjgXlYfJ7AelzOhb7cr2CjP/MIcG5bAQ5l6F2OZKNyE8RsPY14xedrkxpyv1oyWPmXzOwr0gt6ElLJm9jAUwFoZ7xAYHSedcR3Lh4FFuqmxfBHYF3A6VgSlMSfA=="
-                    }
-                }
-                """
-            ),
-        ]
+        
         test_pd_min = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -841,7 +730,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_min)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -895,7 +784,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_max)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -950,7 +839,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_excl_min)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -1005,7 +894,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_excl_max)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -1060,7 +949,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_const)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -1115,7 +1004,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_enum)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -1170,7 +1059,7 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_missing)
         tmp_vp = await create_vp(
-            credentials=test_creds,
+            credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
             profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
@@ -1238,6 +1127,125 @@ class TestPresExchHandler:
             issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
+    
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_edd_limit_disclosure(self, profile, suites):
+        issue_suite, proof_suite = suites
+        test_pd = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                    "name": "Citizenship Information",
+                    "rule": "pick",
+                    "min": 1,
+                    "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                        "id":"citizenship_input_1",
+                        "name":"EU Driver's License",
+                        "group":[
+                            "A"
+                        ],
+                        "schema":[
+                            {
+                                "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                            }
+                        ],
+                        "constraints":{
+                            "limit_disclosure": "required",
+                            "fields":[
+                                {
+                                    "path":[
+                                        "$.issuer.id",
+                                        "$.issuer",
+                                        "$.vc.issuer.id"
+                                    ],
+                                    "purpose":"The claim must be from one of the specified issuers",
+                                    "filter":{
+                                        "type":"string",
+                                        "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:example:489398593"]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        """
+
+        tmp_pd = PresentationDefinition.deserialize(test_pd)
+        assert tmp_pd.input_descriptors[0].constraint.limit_disclosure
+        with pytest.raises(LinkedDataProofException):
+            tmp_vp = await create_vp(
+                credentials=edd_jsonld_creds,
+                pd=tmp_pd,
+                profile=profile,
+                challenge="1f44d55f-f161-4938-a659-f8026467f126",
+                derive_suite=proof_suite,
+                issue_suite=issue_suite,
+            )
+
+    @pytest.mark.asyncio
+    @pytest.mark.ursa_bbs_signatures
+    async def test_edd_jsonld_creds(self, setup_tuple, profile, suites):
+        issue_suite, proof_suite = suites
+        
+        test_pd_const_check = """
+            {
+                "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
+                "submission_requirements":[
+                    {
+                        "name": "European Union Citizenship Proofs",
+                        "rule": "all",
+                        "from": "A"
+                    }
+                ],
+                "input_descriptors":[
+                    {
+                        "id":"citizenship_input_1",
+                        "name":"EU Driver's License",
+                        "group":[
+                            "A"
+                        ],
+                        "schema":[
+                            {
+                                "uri":"https://www.w3.org/2018/credentials#VerifiableCredential"
+                            }
+                        ],
+                        "constraints":{
+                            "fields":[
+                                {
+                                    "path":[
+                                        "$.vc.issuer.id",
+                                        "$.issuer",
+                                        "$.issuer.id"
+                                    ],
+                                    "filter":{
+                                        "type":"string",
+                                        "const": "did:example:489398593"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        """
+
+        tmp_pd = PresentationDefinition.deserialize(test_pd_const_check)
+        tmp_vp = await create_vp(
+            credentials=edd_jsonld_creds,
+            pd=tmp_pd,
+            profile=profile,
+            challenge="1f44d55f-f161-4938-a659-f8026467f126",
+            derive_suite=proof_suite,
+            issue_suite=issue_suite,
+        )
+        assert len(tmp_vp["verifiableCredential"]) == 3
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
