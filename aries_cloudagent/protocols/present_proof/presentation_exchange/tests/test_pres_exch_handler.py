@@ -47,7 +47,7 @@ from .....vc.ld_proofs.document_loader import DocumentLoader
 from .....vc.ld_proofs.error import LinkedDataProofException
 from .....vc.tests.document_loader import custom_document_loader
 from .....vc.vc_ld.issue import issue
-from .....vc.ld_proofs import derive
+from .....vc.vc_ld.prove import derive_credential
 from .....vc.tests.data import (
     BBS_VC_REVEAL_DOCUMENT_MATTR,
     BBS_SIGNED_VC_MATTR,
@@ -67,10 +67,12 @@ def event_loop(request):
     yield loop
     loop.close()
 
+
 @pytest.fixture(scope="class")
 async def setup_tuple():
     creds, pds = get_test_data()
     return creds, pds
+
 
 @pytest.fixture(scope="class")
 def profile():
@@ -81,6 +83,7 @@ def profile():
     context.injector.bind_instance(DIDResolver, DIDResolver(did_resolver_registry))
     context.injector.bind_instance(DocumentLoader, custom_document_loader)
     return profile
+
 
 @pytest.fixture(scope="class")
 async def suites(profile):
@@ -520,53 +523,35 @@ class TestPresExchHandler:
         issue_suite, proof_suite = suites
         test_constraint = {
             "limit_disclosure": "required",
-            "fields":[
+            "fields": [
                 {
-                    "path":[
-                        "$.credentialSubject.givenName"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "JOHN"
-                    }
+                    "path": ["$.credentialSubject.givenName"],
+                    "filter": {"type": "string", "const": "JOHN"},
                 },
                 {
-                    "path":[
-                        "$.credentialSubject.familyName"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "SMITH"
-                    }
+                    "path": ["$.credentialSubject.familyName"],
+                    "filter": {"type": "string", "const": "SMITH"},
                 },
                 {
-                    "path":[
-                        "$.credentialSubject.type"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "enum": ["PermanentResident", "Person"]
-                    }
+                    "path": ["$.credentialSubject.type"],
+                    "filter": {
+                        "type": "string",
+                        "enum": ["PermanentResident", "Person"],
+                    },
                 },
                 {
-                    "path":[
-                        "$.credentialSubject.gender"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "Male"                                    
-                    }
-                }
-            ]  
+                    "path": ["$.credentialSubject.gender"],
+                    "filter": {"type": "string", "const": "Male"},
+                },
+            ],
         }
 
         test_constraint = Constraints.deserialize(test_constraint)
         tmp_reveal_doc = reveal_doc(
-            credential_dict=BBS_SIGNED_VC_MATTR,
-            constraints=test_constraint
+            credential_dict=BBS_SIGNED_VC_MATTR, constraints=test_constraint
         )
-        derived = await derive(
-            document=BBS_SIGNED_VC_MATTR,
+        derived = await derive_credential(
+            credential=BBS_SIGNED_VC_MATTR,
             reveal_document=tmp_reveal_doc,
             suite=proof_suite,
             document_loader=custom_document_loader,
@@ -579,47 +564,52 @@ class TestPresExchHandler:
         issue_suite, proof_suite = suites
 
         test_credential = {
-            "@context": ["https://www.w3.org/2018/credentials/v1", "https://www.w3.org/2018/credentials/examples/v1", "https://w3id.org/security/bbs/v1"], 
-            "id": "https://example.gov/credentials/3732", 
-            "issuer": "did:example:489398593", 
-            "type": ["VerifiableCredential", "UniversityDegreeCredential"], 
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://www.w3.org/2018/credentials/examples/v1",
+                "https://w3id.org/security/bbs/v1",
+            ],
+            "id": "https://example.gov/credentials/3732",
+            "issuer": "did:example:489398593",
+            "type": ["VerifiableCredential", "UniversityDegreeCredential"],
             "issuanceDate": "2020-03-10T04:24:12.164Z",
             "credentialSubject": {
                 "id": "did:example:489398593",
-                "degree": {"type": "BachelorDegree", "name": "Bachelor of Science and Arts", "degreeType": "Underwater Basket Weaving"},
-                "college": "Contoso University"
-            }, 
+                "degree": {
+                    "type": "BachelorDegree",
+                    "name": "Bachelor of Science and Arts",
+                    "degreeType": "Underwater Basket Weaving",
+                },
+                "college": "Contoso University",
+            },
             "proof": {
-                "type": "BbsBlsSignature2020", 
-                "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", 
-                "created": "2021-04-14T15:56:26.427788", 
-                "proofPurpose": "assertionMethod", 
-                "proofValue": "q86pBug3pGMMXq0RE6jfQnk8HaIfM4lb9dQAnKM4aUkT64x/f/65tfnzooeVPf+vXR9a2TVParet6RKWVHVb1QB+GJMWglBy29iEz2tK8H8qYqLtRHMA3YCAQ/aynHKekSsURq+1c2RTEsX27G0hVA=="
-            }
+                "type": "BbsBlsSignature2020",
+                "verificationMethod": "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa#zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa",
+                "created": "2021-04-14T15:56:26.427788",
+                "proofPurpose": "assertionMethod",
+                "proofValue": "q86pBug3pGMMXq0RE6jfQnk8HaIfM4lb9dQAnKM4aUkT64x/f/65tfnzooeVPf+vXR9a2TVParet6RKWVHVb1QB+GJMWglBy29iEz2tK8H8qYqLtRHMA3YCAQ/aynHKekSsURq+1c2RTEsX27G0hVA==",
+            },
         }
 
         test_constraint = {
             "limit_disclosure": "required",
-            "fields":[
+            "fields": [
                 {
-                    "path":[
-                        "$.credentialSubject.degree.name"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "Bachelor of Science and Arts"
-                    }
+                    "path": ["$.credentialSubject.degree.name"],
+                    "filter": {
+                        "type": "string",
+                        "const": "Bachelor of Science and Arts",
+                    },
                 },
-            ]  
+            ],
         }
         test_constraint = Constraints.deserialize(test_constraint)
         tmp_reveal_doc = reveal_doc(
-            credential_dict=test_credential,
-            constraints=test_constraint
+            credential_dict=test_credential, constraints=test_constraint
         )
         assert tmp_reveal_doc == BBS_NESTED_VC_REVEAL_DOCUMENT_MATTR
-        derived = await derive(
-            document=test_credential,
+        derived = await derive_credential(
+            credential=test_credential,
             reveal_document=tmp_reveal_doc,
             suite=proof_suite,
             document_loader=custom_document_loader,
@@ -634,45 +624,29 @@ class TestPresExchHandler:
 
         test_constraint = {
             "limit_disclosure": "required",
-            "fields":[
+            "fields": [
                 {
-                    "path":[
-                        "$.credentialSubject.givenName"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "Cai"
-                    }
+                    "path": ["$.credentialSubject.givenName"],
+                    "filter": {"type": "string", "const": "Cai"},
                 },
                 {
-                    "path":[
-                        "$.credentialSubject.familyName"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "Leblanc"
-                    }
+                    "path": ["$.credentialSubject.familyName"],
+                    "filter": {"type": "string", "const": "Leblanc"},
                 },
                 {
-                    "path":[
-                        "$.credentialSubject.gender"
-                    ],
-                    "filter":{
-                        "type":"string",
-                        "const": "Male"
-                    }
-                }
-            ]  
+                    "path": ["$.credentialSubject.gender"],
+                    "filter": {"type": "string", "const": "Male"},
+                },
+            ],
         }
 
         test_constraint = Constraints.deserialize(test_constraint)
         test_cred = json.loads(cred_list[2].cred_value)
         tmp_reveal_doc = reveal_doc(
-            credential_dict=test_cred,
-            constraints=test_constraint
+            credential_dict=test_cred, constraints=test_constraint
         )
-        derived = await derive(
-            document=test_cred,
+        derived = await derive_credential(
+            credential=test_cred,
             reveal_document=tmp_reveal_doc,
             suite=proof_suite,
             document_loader=custom_document_loader,
@@ -683,7 +657,7 @@ class TestPresExchHandler:
     @pytest.mark.ursa_bbs_signatures
     async def test_filter_number_type_check(self, profile, suites):
         issue_suite, proof_suite = suites
-        
+
         test_pd_min = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1127,7 +1101,7 @@ class TestPresExchHandler:
             issue_suite=issue_suite,
         )
         assert len(tmp_vp["verifiableCredential"]) == 6
-    
+
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_edd_limit_disclosure(self, profile, suites):
@@ -1193,7 +1167,7 @@ class TestPresExchHandler:
     @pytest.mark.ursa_bbs_signatures
     async def test_edd_jsonld_creds(self, setup_tuple, profile, suites):
         issue_suite, proof_suite = suites
-        
+
         test_pd_const_check = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
