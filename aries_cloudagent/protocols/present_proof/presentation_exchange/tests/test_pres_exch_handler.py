@@ -557,6 +557,12 @@ class TestPresExchHandler:
             document_loader=custom_document_loader,
         )
         assert derived
+        assert derived.get("credentialSubject").get("givenName") == "JOHN"
+        assert derived.get("credentialSubject").get("familyName") == "SMITH"
+        assert derived.get("credentialSubject").get("gender") == "Male"
+        assert "Person" in derived.get("credentialSubject").get("type")
+        assert "PermanentResident" in derived.get("credentialSubject").get("type")
+        assert derived.get("proof").get("type") == "BbsBlsSignatureProof2020"
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
@@ -615,6 +621,11 @@ class TestPresExchHandler:
             document_loader=custom_document_loader,
         )
         assert derived
+        assert (
+            derived.get("credentialSubject").get("degree").get("name")
+            == "Bachelor of Science and Arts"
+        )
+        assert derived.get("proof").get("type") == "BbsBlsSignatureProof2020"
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
@@ -652,6 +663,10 @@ class TestPresExchHandler:
             document_loader=custom_document_loader,
         )
         assert derived
+        assert derived.get("credentialSubject").get("givenName") == "Cai"
+        assert derived.get("credentialSubject").get("familyName") == "Leblanc"
+        assert derived.get("credentialSubject").get("gender") == "Male"
+        assert derived.get("proof").get("type") == "BbsBlsSignatureProof2020"
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures

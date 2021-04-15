@@ -290,6 +290,12 @@ def reveal_doc(credential_dict: dict, constraints: Constraints):
             new_credential_dict["credentialSubject"] = []
         elif isinstance(credential_dict.get("credentialSubject"), dict):
             new_credential_dict["credentialSubject"] = {}
+    # Fix issue related to credentialSubject type property
+    if "credentialSubject" in credential_dict:
+        if "type" in credential_dict["credentialSubject"]:
+            new_credential_dict["credentialSubject"]["type"] = credential_dict.get(
+                "credentialSubject"
+            ).get("type")
     return new_credential_dict
 
 
