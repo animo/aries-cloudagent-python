@@ -110,5 +110,6 @@ class V20PresSchema(AgentMessageSchema):
 
         for fmt in formats:
             atch = get_attach_by_id(fmt.attach_id)
-            if V20PresFormat.Format.get(fmt.format) is V20PresFormat.Format.INDY:
-                IndyProofSchema(unknown=RAISE).load(atch.content)
+            V20PresFormat.Format.get(fmt.format).validate_fields(
+                PRES_20, atch.content
+            )

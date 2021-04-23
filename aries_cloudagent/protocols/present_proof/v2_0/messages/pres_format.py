@@ -10,7 +10,11 @@ from marshmallow import EXCLUDE, fields, validate
 from .....messaging.decorators.attach_decorator import AttachDecorator
 from .....messaging.models.base import BaseModel, BaseModelSchema
 from .....messaging.valid import UUIDFour
+from ..formats.handler import V20PresFormatHandler
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from ..formats.handler import V20PresFormatError
 
 # aries prefix
 FormatSpec = namedtuple("FormatSpec", "aries")
@@ -51,6 +55,15 @@ class V20PresFormat(BaseModel):
         def aries(self) -> str:
             """Accessor for aries identifier."""
             return self.value.aries
+
+        @property
+        def handler(self) -> Type["V20PresFormatHandler"]:
+            """Accessor for presentation exchange format handler."""
+            return self.value.handler.resolved
+
+        def validate_fields(self, message_type: str, attachment_data: Mapping):
+            """Raise ValidationError for invalid attachment formats."""
+            self.handler.validate_fields(message_type, attachment_data)
 
         def get_attachment_data(
             self,

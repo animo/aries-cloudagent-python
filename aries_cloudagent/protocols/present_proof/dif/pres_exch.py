@@ -3,6 +3,7 @@ from marshmallow import (
     fields,
     validate,
     EXCLUDE,
+    INCLUDE,
     pre_load,
     post_dump,
     ValidationError,
@@ -13,6 +14,7 @@ from ....messaging.models.base import BaseModelSchema, BaseModel
 from ....messaging.valid import (
     UUID4,
 )
+from ....vc.vc_ld.models import LinkedDataProofSchema
 
 
 class ClaimFormat(BaseModel):
@@ -908,3 +910,81 @@ class StrOrDictField(fields.Field):
             return value
         else:
             raise ValidationError("Field should be str or dict")
+
+
+class VerifiablePresentation(BaseModel):
+    """Single VerifiablePresentation object."""
+
+    class Meta:
+        """VerifiablePresentation metadata."""
+
+        schema_class = "VerifiablePresentationSchema"
+
+    def __init__(
+        self,
+        *,
+        id: str = None,
+        contexts: Sequence[Union[str, dict]] = None,
+        types: Sequence[str] = None,
+        credentials: Sequence[dict] = None,
+        proof: Sequence[dict] = None,
+        presentation_submission: PresentationSubmission = None,
+    ):
+        """Initialize VerifiablePresentation."""
+        self._id = _id
+        self.contexts = contexts
+        self.types = types
+        self.credentials = credentials
+        self.proof = proof
+        self.presentation_submission = presentation_submission
+
+
+class VerifiablePresentationSchema(BaseModelSchema):
+    """Single Field Schema."""
+
+    class Meta:
+        """VerifiablePresentationSchema metadata."""
+
+        model_class = VerifiablePresentation
+        unknown = INCLUDE
+
+    id = fields.Str(
+        description="ID",
+        required=False,
+        **UUID4,
+        data_key="id",
+    )
+    contexts = fields.List(
+        StrOrDictField(),
+        data_key="@context",
+    )
+    types = fields.List(
+        fields.Str(description="Types", required=False),
+        data_key="type",
+    )
+    credentials = fields.List(
+        fields.Dict(description="Credentials", required=False),
+        data_key="verifiableCredential",
+    )
+    proof = fields.Nested(
+        LinkedDataProofSchema(),
+        required=True,
+        description="The proof of the credential",
+        example={
+            "type": "Ed25519Signature2018",
+            "verificationMethod": (
+                "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyG"
+                "o38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"
+            ),
+            "created": "2019-12-11T03:50:55",
+            "proofPurpose": "assertionMethod",
+            "jws": (
+                "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df"
+                "_keblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
+            ),
+        },
+        data_key="proof",
+    )
+    presentation_submission = fields.Nested(
+        PresentationSubmissionSchema, data_key="presentation_submission"
+    )

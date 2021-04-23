@@ -50,6 +50,7 @@ from .pres_exch import (
     SchemaInputDescriptor,
     InputDescriptorMapping,
     PresentationSubmission,
+    VerifiablePresentation,
 )
 
 
@@ -850,8 +851,7 @@ async def create_vp(
     issue_suite: LinkedDataProof,
     challenge: str = None,
     domain: str = None,
-    proof_purpose: ProofPurpose = None,
-) -> dict:
+) -> VerifiablePresentation:
     """
     Create VerifiablePresentation.
 
@@ -885,7 +885,7 @@ async def create_vp(
         document_loader=document_loader,
         challenge=challenge,
     )
-    return signed_vp
+    return VerifiablePresentation.deserialize(signed_vp)
 
 
 async def merge(
