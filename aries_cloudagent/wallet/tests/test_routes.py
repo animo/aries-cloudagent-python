@@ -3,11 +3,12 @@ from aiohttp.web import HTTPForbidden
 
 from ...admin.request_context import AdminRequestContext
 from ...ledger.base import BaseLedger
-from ...wallet.base import BaseWallet, DIDInfo
 from ...multitenant.manager import MultitenantManager
 from ...wallet.key_type import KeyType
 from ...wallet.did_method import DIDMethod
 from .. import routes as test_module
+from ..base import BaseWallet
+from ..did_info import DIDInfo
 from ..did_posture import DIDPosture
 
 
@@ -112,6 +113,13 @@ class TestWalletRoutes(AsyncTestCase):
                 }
             )
             assert result is json_response.return_value
+
+    async def test_create_did_unsupported_key_type(self):
+        self.request.json = async_mock.CoroutineMock(
+            return_value={"method": "sov", "options": {"key_type": "bls12381g2"}}
+        )
+        with self.assertRaises(test_module.web.HTTPForbidden):
+            await test_module.wallet_create_did(self.request)
 
     async def test_create_did_x(self):
         self.wallet.create_local_did.side_effect = test_module.WalletError()

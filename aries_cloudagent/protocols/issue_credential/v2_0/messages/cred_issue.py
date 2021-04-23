@@ -62,14 +62,20 @@ class V20CredIssue(AgentMessage):
             fmt: format of attachment in list to decode and return
 
         """
-        return (
-            (
-                fmt or V20CredFormat.Format.get(self.formats[0].format)
-            ).get_attachment_data(
-                self.formats,
-                self.credentials_attach,
+        target_format = (
+            fmt
+            if fmt
+            else next(
+                filter(
+                    lambda ff: ff,
+                    [V20CredFormat.Format.get(f.format) for f in self.formats],
+                ),
+                None,
             )
-            if self.formats
+        )
+        return (
+            target_format.get_attachment_data(self.formats, self.credentials_attach)
+            if target_format
             else None
         )
 
@@ -124,6 +130,7 @@ class V20CredIssueSchema(AgentMessageSchema):
 
         for fmt in formats:
             atch = get_attach_by_id(fmt.attach_id)
-            V20CredFormat.Format.get(fmt.format).validate_fields(
-                CRED_20_ISSUE, atch.content
-            )
+            cred_format = V20CredFormat.Format.get(fmt.format)
+
+            if cred_format:
+                cred_format.validate_fields(CRED_20_ISSUE, atch.content)

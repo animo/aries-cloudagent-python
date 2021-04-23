@@ -58,8 +58,6 @@ class VerifiableCredential(BaseModel):
         self._issuance_date = issuance_date
         self._expiration_date = expiration_date
 
-        if isinstance(proof, dict):
-            proof = LDProof.deserialize(proof)
         self._proof = proof
 
         self.extra = kwargs
@@ -236,6 +234,23 @@ class VerifiableCredential(BaseModel):
     def proof(self, proof: LDProof):
         """Setter for proof."""
         self._proof = proof
+
+    def __eq__(self, o: object) -> bool:
+        """Check equalness."""
+        if isinstance(o, VerifiableCredential):
+            return (
+                self.context == o.context
+                and self.id == o.id
+                and self.type == o.type
+                and self.issuer == o.issuer
+                and self.issuance_date == o.issuance_date
+                and self.expiration_date == o.expiration_date
+                and self.credential_subject == o.credential_subject
+                and self.proof == o.proof
+                and self.extra == o.extra
+            )
+
+        return False
 
 
 class CredentialSchema(BaseModelSchema):

@@ -18,7 +18,7 @@ from ..ledger.endpoint_type import EndpointType
 from ..ledger.error import LedgerConfigError
 
 from ..did.did_key import DIDKey
-from .base import BaseWallet, KeyInfo, DIDInfo
+from .base import BaseWallet
 from .crypto import (
     create_keypair,
     sign_message,
@@ -30,6 +30,7 @@ from .did_method import DIDMethod
 from .key_pair import KeyPairStorageManager
 from ..storage.indy import IndySdkStorage
 from ..storage.error import StorageDuplicateError, StorageNotFoundError
+from .did_info import DIDInfo, KeyInfo
 from .error import WalletError, WalletDuplicateError, WalletNotFoundError
 from .util import b58_to_bytes, bytes_to_b58, bytes_to_b64
 
@@ -435,6 +436,9 @@ class IndySdkWallet(BaseWallet):
                 f" for did method {method.method_name}"
             )
 
+        if method == DIDMethod.KEY and did:
+            raise WalletError("Not allowed to set did for did method key")
+
         # All ed25519 keys are handled by indy
         if key_type == KeyType.ED25519:
             return await self.__create_indy_local_did(
@@ -620,9 +624,7 @@ class IndySdkWallet(BaseWallet):
         """
         did_info = await self.get_local_did(did)
         if did_info.method != DIDMethod.SOV:
-            raise WalletError(
-                f"Did method {did_info.method.method_name} has no support for endpoints."
-            )
+            raise WalletError("Setting did endpoint is only allowed for did:sov dids")
 
         metadata = {**did_info.metadata}
         if not endpoint_type:
