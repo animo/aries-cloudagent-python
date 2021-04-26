@@ -88,63 +88,6 @@ class VCRecord(BaseModel):
             and other.cred_value == self.cred_value
         )
 
-    @classmethod
-    def deserialize_jsonld_cred(cls, cred_json_str: str) -> "VCRecord":
-        """
-        Return VCRecord.
-
-        Deserialize JSON-LD cred to a VCRecord
-
-        Args:
-            cred_json_str: credential json string
-        Return:
-            VCRecord
-
-        """
-        cred_dict = json.loads(cred_json_str)
-
-        given_id = cred_dict.get("id")
-        contexts = [ctx for ctx in cred_dict.get("@context") if type(ctx) is str]
-
-        # issuer
-        issuer = cred_dict.get("issuer")
-        if type(issuer) is dict:
-            issuer = issuer.get("id")
-
-        # types
-        types = [_type for _type in cred_dict.get("type")]
-
-        # subjects
-        subjects = cred_dict.get("credentialSubject")
-        if type(subjects) is dict:
-            subjects = [subjects]
-        subject_ids = [subject.get("id") for subject in subjects if subject.get("id")]
-
-        # Schemas
-        schemas = cred_dict.get("credentialsSchema", [])
-        if type(schemas) is dict:
-            schemas = [schemas]
-        schema_ids = [schema.get("id") for schema in schemas]
-
-        # Proofs (this can be done easier if we use the expanded version)
-        proofs = cred_dict.get("proof") or []
-        # TOCHECK
-        proof_types = None
-        if type(proofs) is dict:
-            proofs = [proofs]
-        if proofs:
-            proof_types = [proof.get("type") for proof in proofs]
-
-        return VCRecord(
-            contexts=contexts,
-            types=types,
-            issuer_id=issuer,
-            subject_ids=subject_ids,
-            proof_types=proof_types,
-            given_id=given_id,
-            cred_value=cred_json_str,
-            schema_ids=schema_ids,
-        )
 
 class VCRecordSchema(BaseModelSchema):
     """Verifiable credential storage record schema class."""

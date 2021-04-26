@@ -8,7 +8,7 @@ from marshmallow import (
     post_dump,
     ValidationError,
 )
-from typing import Sequence
+from typing import Sequence, Union
 
 from ....messaging.models.base import BaseModelSchema, BaseModel
 from ....messaging.valid import (
@@ -931,7 +931,7 @@ class VerifiablePresentation(BaseModel):
         presentation_submission: PresentationSubmission = None,
     ):
         """Initialize VerifiablePresentation."""
-        self._id = _id
+        self.id = id
         self.contexts = contexts
         self.types = types
         self.credentials = credentials

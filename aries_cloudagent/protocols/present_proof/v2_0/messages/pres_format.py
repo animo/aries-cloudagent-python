@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from marshmallow import EXCLUDE, fields
 
+from .....utils.classloader import DeferLoad
 from .....messaging.decorators.attach_decorator import AttachDecorator
 from .....messaging.models.base import BaseModel, BaseModelSchema
 from .....messaging.valid import UUIDFour
@@ -31,8 +32,20 @@ class V20PresFormat(BaseModel):
     class Format(Enum):
         """Attachment format."""
 
-        INDY = FormatSpec("hlindy/")
-        DIF = FormatSpec("dif/")
+        INDY = FormatSpec(
+            "hlindy/",
+            DeferLoad(
+                "aries_cloudagent.protocols.present_proof.v2_0"
+                ".formats.indy.handler.IndyPresExchangeHandler"
+            ),
+        )
+        DIF = FormatSpec(
+            "dif/",
+            DeferLoad(
+                "aries_cloudagent.protocols.present_proof.v2_0"
+                ".formats.dif.handler.DIFPresExchangeHandler"
+            ),
+        )
 
         @classmethod
         def get(cls, label: Union[str, "V20PresFormat.Format"]):

@@ -18,22 +18,8 @@ from ..pres_exch import (
     Constraints,
 )
 from ..pres_exch_handler import (
-    make_requirement,
-    is_len_applicable,
-    exclusive_maximum_check,
-    exclusive_minimum_check,
-    minimum_check,
-    maximum_check,
-    length_check,
-    pattern_check,
-    subject_is_issuer,
-    filter_schema,
-    reveal_doc,
-    credential_match_schema,
-    is_numeric,
-    merge_nested_results,
-    create_vp,
-    PresentationExchError,
+    DIFPresExchHandler,
+    DIFPresExchError,
 )
 from .....resolver.did_resolver_registry import DIDResolverRegistry
 from .....resolver.did_resolver import DIDResolver
@@ -84,7 +70,6 @@ def profile():
     context.injector.bind_instance(DocumentLoader, custom_document_loader)
     return profile
 
-
 @pytest.fixture(scope="class")
 async def suites(profile):
     wallet = InMemoryWallet(profile)
@@ -125,21 +110,22 @@ class TestPresExchHandler:
     async def test_load_cred_json(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         assert len(cred_list) == 6
         for tmp_pd in pd_list:
             # tmp_pd is tuple of presentation_definition and expected number of VCs
-            tmp_vp = await create_vp(
+            tmp_vp = await test_module.create_vp(
                 credentials=cred_list,
                 pd=tmp_pd[0],
-                profile=profile,
                 challenge="1f44d55f-f161-4938-a659-f8026467f126",
                 derive_suite=proof_suite,
                 issue_suite=issue_suite,
             )
-            assert len(tmp_vp["verifiableCredential"]) == tmp_pd[1]
+            assert len(tmp_vp.get("verifiableCredential")) == tmp_pd[1]
 
     @pytest.mark.asyncio
-    async def test_to_requirement_catch_errors(self):
+    async def test_to_requirement_catch_errors(self, profile):
+        test_module = DIFPresExchHandler(profile)
         test_json_pd = """
             {
                 "submission_requirements": [
@@ -197,9 +183,9 @@ class TestPresExchHandler:
             }
         """
 
-        with pytest.raises(PresentationExchError):
+        with pytest.raises(DIFPresExchError):
             test_pd = PresentationDefinition.deserialize(test_json_pd)
-            await make_requirement(
+            await test_module.make_requirement(
                 srs=test_pd.submission_requirements,
                 descriptors=test_pd.input_descriptors,
             )
@@ -273,15 +259,16 @@ class TestPresExchHandler:
             }
         """
 
-        with pytest.raises(PresentationExchError):
+        with pytest.raises(DIFPresExchError):
             test_pd = PresentationDefinition.deserialize(test_json_pd_nested_srs)
-            await make_requirement(
+            await test_module.make_requirement(
                 srs=test_pd.submission_requirements,
                 descriptors=test_pd.input_descriptors,
             )
 
     @pytest.mark.asyncio
-    async def test_make_requirement_with_none_params(self):
+    async def test_make_requirement_with_none_params(self, profile):
+        test_module = DIFPresExchHandler(profile)
         test_json_pd_no_sr = """
             {
                 "id": "32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -332,7 +319,7 @@ class TestPresExchHandler:
 
         test_pd = PresentationDefinition.deserialize(test_json_pd_no_sr)
         assert test_pd.submission_requirements is None
-        await make_requirement(
+        await test_module.make_requirement(
             srs=test_pd.submission_requirements, descriptors=test_pd.input_descriptors
         )
 
@@ -351,9 +338,9 @@ class TestPresExchHandler:
             }
         """
 
-        with pytest.raises(PresentationExchError):
+        with pytest.raises(DIFPresExchError):
             test_pd = PresentationDefinition.deserialize(test_json_pd_no_input_desc)
-            await make_requirement(
+            await test_module.make_requirement(
                 srs=test_pd.submission_requirements,
                 descriptors=test_pd.input_descriptors,
             )
@@ -363,7 +350,7 @@ class TestPresExchHandler:
     async def test_subject_is_issuer_check(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
-
+        test_module = DIFPresExchHandler(profile)
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -440,10 +427,9 @@ class TestPresExchHandler:
             }
         """
 
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=PresentationDefinition.deserialize(test_pd),
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
@@ -454,6 +440,7 @@ class TestPresExchHandler:
     async def test_limit_disclosure_required_check(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -482,14 +469,12 @@ class TestPresExchHandler:
                             "fields":[
                                 {
                                     "path":[
-                                        "$.issuer.id",
-                                        "$.issuer",
-                                        "$.vc.issuer.id"
+                                        "$.credentialSubject.givenName"
                                     ],
                                     "purpose":"The claim must be from one of the specified issuers",
                                     "filter":{
                                         "type":"string",
-                                        "enum": ["did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa", "did:example:489398593"]
+                                        "enum": ["JOHN", "CAI"]
                                     }
                                 }
                             ]
@@ -501,16 +486,15 @@ class TestPresExchHandler:
 
         tmp_pd = PresentationDefinition.deserialize(test_pd)
         assert tmp_pd.input_descriptors[0].constraint.limit_disclosure
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
-        for cred in tmp_vp["verifiableCredential"]:
+        assert len(tmp_vp.get("verifiableCredential")) == 1
+        for cred in tmp_vp.get("verifiableCredential"):
             assert cred["issuer"] in [
                 "did:key:zUC72Q7XD4PE4CrMiDVXuvZng3sBvMmaGgNeTUJuzavH2BS7ThbHL9FhsZM9QYY5fqAQ4MB8M9oudz3tfuaX36Ajr97QRW7LBt6WWmrtESe6Bs5NYzFtLWEmeVtvRYVAgjFcJSa",
                 "did:example:489398593",
@@ -519,8 +503,9 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_reveal_doc_a(self, suites):
+    async def test_reveal_doc_a(self, suites, profile):
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_constraint = {
             "limit_disclosure": "required",
             "fields": [
@@ -547,7 +532,7 @@ class TestPresExchHandler:
         }
 
         test_constraint = Constraints.deserialize(test_constraint)
-        tmp_reveal_doc = reveal_doc(
+        tmp_reveal_doc = test_module.reveal_doc(
             credential_dict=BBS_SIGNED_VC_MATTR, constraints=test_constraint
         )
         derived = await derive_credential(
@@ -566,9 +551,9 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_reveal_doc_b(self, suites):
+    async def test_reveal_doc_b(self, suites, profile):
         issue_suite, proof_suite = suites
-
+        test_module = DIFPresExchHandler(profile)
         test_credential = {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
@@ -610,7 +595,7 @@ class TestPresExchHandler:
             ],
         }
         test_constraint = Constraints.deserialize(test_constraint)
-        tmp_reveal_doc = reveal_doc(
+        tmp_reveal_doc = test_module.reveal_doc(
             credential_dict=test_credential, constraints=test_constraint
         )
         assert tmp_reveal_doc == BBS_NESTED_VC_REVEAL_DOCUMENT_MATTR
@@ -629,10 +614,10 @@ class TestPresExchHandler:
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
-    async def test_reveal_doc_c(self, setup_tuple, suites):
+    async def test_reveal_doc_c(self, setup_tuple, suites, profile):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
-
+        test_module = DIFPresExchHandler(profile)
         test_constraint = {
             "limit_disclosure": "required",
             "fields": [
@@ -652,8 +637,8 @@ class TestPresExchHandler:
         }
 
         test_constraint = Constraints.deserialize(test_constraint)
-        test_cred = json.loads(cred_list[2].cred_value)
-        tmp_reveal_doc = reveal_doc(
+        test_cred = cred_list[2].cred_value
+        tmp_reveal_doc = test_module.reveal_doc(
             credential_dict=test_cred, constraints=test_constraint
         )
         derived = await derive_credential(
@@ -672,7 +657,7 @@ class TestPresExchHandler:
     @pytest.mark.ursa_bbs_signatures
     async def test_filter_number_type_check(self, profile, suites):
         issue_suite, proof_suite = suites
-
+        test_module = DIFPresExchHandler(profile)
         test_pd_min = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -718,15 +703,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_min)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 3
+        assert len(tmp_vp.get("verifiableCredential")) == 3
         test_pd_max = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -772,15 +756,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_max)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 2
+        assert len(tmp_vp.get("verifiableCredential")) == 2
 
         test_pd_excl_min = """
             {
@@ -827,15 +810,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_excl_min)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 3
+        assert len(tmp_vp.get("verifiableCredential")) == 3
 
         test_pd_excl_max = """
             {
@@ -882,15 +864,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_excl_max)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 2
+        assert len(tmp_vp.get("verifiableCredential")) == 2
 
         test_pd_const = """
             {
@@ -937,15 +918,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_const)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 2
+        assert len(tmp_vp.get("verifiableCredential")) == 2
 
         test_pd_enum = """
             {
@@ -992,15 +972,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_enum)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 2
+        assert len(tmp_vp.get("verifiableCredential")) == 2
 
         test_pd_missing = """
             {
@@ -1047,21 +1026,21 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_missing)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=bbs_bls_number_filter_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 0
+        assert len(tmp_vp.get("verifiableCredential")) == 0
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_filter_no_type_check(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1107,20 +1086,20 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_edd_limit_disclosure(self, profile, suites):
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_pd = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1169,10 +1148,9 @@ class TestPresExchHandler:
         tmp_pd = PresentationDefinition.deserialize(test_pd)
         assert tmp_pd.input_descriptors[0].constraint.limit_disclosure
         with pytest.raises(LinkedDataProofException):
-            tmp_vp = await create_vp(
+            tmp_vp = await test_module.create_vp(
                 credentials=edd_jsonld_creds,
                 pd=tmp_pd,
-                profile=profile,
                 challenge="1f44d55f-f161-4938-a659-f8026467f126",
                 derive_suite=proof_suite,
                 issue_suite=issue_suite,
@@ -1182,7 +1160,7 @@ class TestPresExchHandler:
     @pytest.mark.ursa_bbs_signatures
     async def test_edd_jsonld_creds(self, setup_tuple, profile, suites):
         issue_suite, proof_suite = suites
-
+        test_module = DIFPresExchHandler(profile)
         test_pd_const_check = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1226,21 +1204,21 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_const_check)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=edd_jsonld_creds,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 3
+        assert len(tmp_vp.get("verifiableCredential")) == 3
 
     @pytest.mark.asyncio
     @pytest.mark.ursa_bbs_signatures
     async def test_filter_string(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_pd_min_length = """
             {
                 "id":"32f54163-7166-48f1-93d8-ff217bdb0653",
@@ -1284,15 +1262,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_min_length)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
         test_pd_max_length = """
             {
@@ -1337,15 +1314,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_max_length)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
         test_pd_pattern_check = """
             {
@@ -1390,15 +1366,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_pattern_check)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 0
+        assert len(tmp_vp.get("verifiableCredential")) == 0
 
         test_pd_datetime_exclmax = """
             {
@@ -1443,15 +1418,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_datetime_exclmax)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
         test_pd_datetime_exclmin = """
             {
@@ -1496,15 +1470,14 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_datetime_exclmin)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
         test_pd_const_check = """
             {
@@ -1549,35 +1522,36 @@ class TestPresExchHandler:
         """
 
         tmp_pd = PresentationDefinition.deserialize(test_pd_const_check)
-        tmp_vp = await create_vp(
+        tmp_vp = await test_module.create_vp(
             credentials=cred_list,
             pd=tmp_pd,
-            profile=profile,
             challenge="1f44d55f-f161-4938-a659-f8026467f126",
             derive_suite=proof_suite,
             issue_suite=issue_suite,
         )
-        assert len(tmp_vp["verifiableCredential"]) == 6
+        assert len(tmp_vp.get("verifiableCredential")) == 6
 
     @pytest.mark.asyncio
     async def test_filter_schema(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         tmp_schema_list = [
             SchemaInputDescriptor(
                 uri="test123",
                 required=True,
             )
         ]
-        assert len(await filter_schema(cred_list, tmp_schema_list)) == 0
+        assert len(await test_module.filter_schema(cred_list, tmp_schema_list)) == 0
 
     @pytest.mark.asyncio
     async def test_cred_schema_match(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         tmp_cred = deepcopy(cred_list[0])
         assert (
-            await credential_match_schema(
+            await test_module.credential_match_schema(
                 tmp_cred, "https://www.w3.org/2018/credentials#VerifiableCredential"
             )
             is True
@@ -1587,6 +1561,7 @@ class TestPresExchHandler:
     async def test_merge_nested(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         test_nested_result = []
         test_dict_1 = {}
         test_dict_1["citizenship_input_1"] = [
@@ -1611,71 +1586,78 @@ class TestPresExchHandler:
         test_nested_result.append(test_dict_2)
         test_nested_result.append(test_dict_3)
 
-        tmp_result = await merge_nested_results(test_nested_result, {})
+        tmp_result = await test_module.merge_nested_results(test_nested_result, {})
 
     @pytest.mark.asyncio
     async def test_subject_is_issuer(self, setup_tuple, profile, suites):
         cred_list, pd_list = setup_tuple
         issue_suite, proof_suite = suites
+        test_module = DIFPresExchHandler(profile)
         tmp_cred = deepcopy(cred_list[0])
         tmp_cred.issuer_id = "4fc82e63-f897-4dad-99cc-f698dff6c425"
         tmp_cred.subject_ids.add("4fc82e63-f897-4dad-99cc-f698dff6c425")
         assert tmp_cred.subject_ids is not None
-        assert await subject_is_issuer(tmp_cred) is True
+        assert await test_module.subject_is_issuer(tmp_cred) is True
         tmp_cred.issuer_id = "19b823fb-55ef-49f4-8caf-2a26b8b9286f"
-        assert await subject_is_issuer(tmp_cred) is False
+        assert await test_module.subject_is_issuer(tmp_cred) is False
 
     @pytest.mark.asyncio
-    def test_is_numeric(self):
-        assert is_numeric("test") is False
-        assert is_numeric(1) is True
-        assert is_numeric(2 + 3j) is False
+    def test_is_numeric(self, profile):
+        test_module = DIFPresExchHandler(profile)
+        assert test_module.is_numeric("test") is False
+        assert test_module.is_numeric(1) is True
+        assert test_module.is_numeric(2 + 3j) is False
 
     @pytest.mark.asyncio
-    def test_filter_no_match(self):
+    def test_filter_no_match(self, profile):
+        test_module = DIFPresExchHandler(profile)
         tmp_filter_excl_min = Filter(exclusive_min=7)
-        assert exclusive_minimum_check("test", tmp_filter_excl_min) is False
+        assert test_module.exclusive_minimum_check("test", tmp_filter_excl_min) is False
         tmp_filter_excl_max = Filter(exclusive_max=10)
-        assert exclusive_maximum_check("test", tmp_filter_excl_max) is False
+        assert test_module.exclusive_maximum_check("test", tmp_filter_excl_max) is False
         tmp_filter_min = Filter(minimum=10)
-        assert minimum_check("test", tmp_filter_min) is False
+        assert test_module.minimum_check("test", tmp_filter_min) is False
         tmp_filter_max = Filter(maximum=10)
-        assert maximum_check("test", tmp_filter_max) is False
+        assert test_module.maximum_check("test", tmp_filter_max) is False
 
     @pytest.mark.asyncio
-    def test_filter_valueerror(self):
+    def test_filter_valueerror(self, profile):
+        test_module = DIFPresExchHandler(profile)
         tmp_filter_excl_min = Filter(exclusive_min=7, fmt="date")
-        assert exclusive_minimum_check("test", tmp_filter_excl_min) is False
+        assert test_module.exclusive_minimum_check("test", tmp_filter_excl_min) is False
         tmp_filter_excl_max = Filter(exclusive_max=10, fmt="date")
-        assert exclusive_maximum_check("test", tmp_filter_excl_max) is False
+        assert test_module.exclusive_maximum_check("test", tmp_filter_excl_max) is False
         tmp_filter_min = Filter(minimum=10, fmt="date")
-        assert minimum_check("test", tmp_filter_min) is False
+        assert test_module.minimum_check("test", tmp_filter_min) is False
         tmp_filter_max = Filter(maximum=10, fmt="date")
-        assert maximum_check("test", tmp_filter_max) is False
+        assert test_module.maximum_check("test", tmp_filter_max) is False
 
     @pytest.mark.asyncio
-    def test_filter_length_check(self):
+    def test_filter_length_check(self, profile):
+        test_module = DIFPresExchHandler(profile)
         tmp_filter_both = Filter(min_length=7, max_length=10)
-        assert length_check("test12345", tmp_filter_both) is True
+        assert test_module.length_check("test12345", tmp_filter_both) is True
         tmp_filter_min = Filter(min_length=7)
-        assert length_check("test123", tmp_filter_min) is True
+        assert test_module.length_check("test123", tmp_filter_min) is True
         tmp_filter_max = Filter(max_length=10)
-        assert length_check("test", tmp_filter_max) is True
-        assert length_check("test12", tmp_filter_min) is False
+        assert test_module.length_check("test", tmp_filter_max) is True
+        assert test_module.length_check("test12", tmp_filter_min) is False
 
     @pytest.mark.asyncio
-    def test_filter_pattern_check(self):
+    def test_filter_pattern_check(self, profile):
+        test_module = DIFPresExchHandler(profile)
         tmp_filter = Filter(pattern="test1|test2")
-        assert pattern_check("test3", tmp_filter) is False
+        assert test_module.pattern_check("test3", tmp_filter) is False
         tmp_filter = Filter(const="test3")
-        assert pattern_check("test3", tmp_filter) is False
+        assert test_module.pattern_check("test3", tmp_filter) is False
 
     @pytest.mark.asyncio
-    def test_is_len_applicable(self):
+    def test_is_len_applicable(self, profile):
+        test_module = DIFPresExchHandler(profile)
         tmp_req_a = Requirement(count=1)
         tmp_req_b = Requirement(minimum=3)
         tmp_req_c = Requirement(maximum=5)
 
-        assert is_len_applicable(tmp_req_a, 2) is False
-        assert is_len_applicable(tmp_req_b, 2) is False
-        assert is_len_applicable(tmp_req_c, 6) is False
+        assert test_module.is_len_applicable(tmp_req_a, 2) is False
+        assert test_module.is_len_applicable(tmp_req_b, 2) is False
+        assert test_module.is_len_applicable(tmp_req_c, 6) is False

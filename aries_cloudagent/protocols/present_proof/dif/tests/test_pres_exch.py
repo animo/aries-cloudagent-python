@@ -18,7 +18,6 @@ from ..pres_exch import (
     Filter,
     Constraints,
 )
-from ..pres_exch_handler import create_vp
 
 
 class TestPresExchSchemas(TestCase):

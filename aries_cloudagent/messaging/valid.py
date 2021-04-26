@@ -616,7 +616,6 @@ class CredentialType(Validator):
         length = len(value)
 
         # Derive credential does not have VerifiableCredential as first type
-        # TOCHECK
         if length < 1 or CredentialType.FIRST_TYPE not in value:
             raise ValidationError(
                 f"First type {value[0]} must be {CredentialType.FIRST_TYPE}"
