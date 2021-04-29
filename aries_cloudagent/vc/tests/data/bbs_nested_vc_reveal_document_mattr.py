@@ -7,6 +7,8 @@ BBS_NESTED_VC_REVEAL_DOCUMENT_MATTR = {
     "issuer": {},
     "issuanceDate": {},
     "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "issuer": "did:example:489398593",
     "@explicit": True,
+    "issuanceDate": "2020-03-10T04:24:12.164Z",
     "credentialSubject": {"@explicit": True, "degree": {"@explicit": True, "name": {}}},
 }
