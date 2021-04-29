@@ -868,6 +868,8 @@ async def present_proof_send_presentation(request: web.BaseRequest):
         raise web.HTTPForbidden(reason=f"Connection {connection_id} not ready")
 
     pres_manager = V20PresManager(context.profile)
+    if V20PresFormat.Format.INDY.api in fmt:
+        pass
     try:
         indy_spec = body.get(V20PresFormat.Format.INDY.api)  # TODO: accommodate DIF
         request_data = {
@@ -881,7 +883,6 @@ async def present_proof_send_presentation(request: web.BaseRequest):
             pres_ex_record,
             request_data=request_data,
             comment=body.get("comment"),
-            format_=fmt,
         )
         result = pres_ex_record.serialize()
     except (

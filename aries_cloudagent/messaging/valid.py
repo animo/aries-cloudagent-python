@@ -560,7 +560,7 @@ class Uri(Regexp):
     """Validate value against URI on any scheme."""
 
     EXAMPLE = "https://www.w3.org/2018/credentials/v1"
-    PATTERN = r"^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?"
+    PATTERN = r"\w+:(\/?\/?)[^\s]+"
 
     def __init__(self):
         """Initializer."""
@@ -604,8 +604,8 @@ class EndpointType(OneOf):
 class CredentialType(Validator):
     """Credential Type."""
 
-    FIRST_TYPE = "VerifiableCredential"
-    EXAMPLE = [FIRST_TYPE, "AlumniCredential"]
+    CREDENTIAL_TYPE = "VerifiableCredential"
+    EXAMPLE = [CREDENTIAL_TYPE, "AlumniCredential"]
 
     def __init__(self) -> None:
         """Initializer."""
@@ -614,12 +614,8 @@ class CredentialType(Validator):
     def __call__(self, value):
         """Validate input value."""
         length = len(value)
-
-        # Derive credential does not have VerifiableCredential as first type
-        if length < 1 or CredentialType.FIRST_TYPE not in value:
-            raise ValidationError(
-                f"First type {value[0]} must be {CredentialType.FIRST_TYPE}"
-            )
+        if length < 1 or CredentialType.CREDENTIAL_TYPE not in value:
+            raise ValidationError(f"type must include {CredentialType.CREDENTIAL_TYPE}")
 
         return value
 
@@ -640,7 +636,7 @@ class CredentialContext(Validator):
 
         if length < 1 or value[0] != CredentialContext.FIRST_CONTEXT:
             raise ValidationError(
-                f"First context {value[0]} must be {CredentialContext.FIRST_CONTEXT}"
+                f"First context must be {CredentialContext.FIRST_CONTEXT}"
             )
 
         return value

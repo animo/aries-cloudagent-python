@@ -1,9 +1,5 @@
 """Model for representing a stored verifiable credential."""
 
-import json
-
-from pyld import jsonld
-from pyld.jsonld import JsonLdProcessor
 import logging
 
 from typing import Mapping, Sequence
