@@ -45,9 +45,32 @@ class V20PresFormatHandler(ABC):
         """
         return self._profile
 
-    @abstractmethod
+    def get_format_identifier(self, message_type: str) -> str:
+        """Get attachment format identifier for format and message combination.
+
+        Args:
+            message_type (str): Message type for which to return the format identifier
+
+        Returns:
+            str: Issue credential attachment format identifier
+
+        """
+        return ATTACHMENT_FORMAT[message_type][self.format.api]
+
     def get_format_data(self, message_type: str, data: dict) -> PresFormatAttachment:
         """Get presentation format and attachment objects for use in presentation ex messages."""
+        if self.format.api == "dif":
+            attach = AttachDecorator.data_json(data, ident=self.format.api)
+        elif self.format.api == "indy":
+            attach = AttachDecorator.data_base64(data, ident=self.format.api)
+
+        return (
+            V20PresFormat(
+                attach_id=self.format.api,
+                format_=self.get_format_identifier(message_type),
+            ),
+            attach,
+        )
 
     @abstractclassmethod
     def validate_fields(cls, message_type: str, attachment_data: dict) -> None:
@@ -57,10 +80,7 @@ class V20PresFormatHandler(ABC):
     async def create_bound_request(
         self,
         pres_ex_record: V20PresExRecord,
-        name: str = None,
-        version: str = None,
-        nonce: str = None,
-        comment: str = None,
+        request_data: dict = None,
     ) -> PresFormatAttachment:
         """Create a presentation request bound to a proposal."""
 
@@ -68,8 +88,7 @@ class V20PresFormatHandler(ABC):
     async def create_pres(
         self,
         pres_ex_record: V20PresExRecord,
-        requested_credentials: dict,
-        comment: str = None,
+        request_data: dict = None,
     ) -> PresFormatAttachment:
         """Create a presentation."""
 

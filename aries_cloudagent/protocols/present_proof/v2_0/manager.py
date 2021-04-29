@@ -164,9 +164,7 @@ class V20PresManager:
     async def create_bound_request(
         self,
         pres_ex_record: V20PresExRecord,
-        name: str = None,
-        version: str = None,
-        nonce: str = None,
+        request_data: dict = None,
         comment: str = None,
     ):
         """
@@ -195,9 +193,7 @@ class V20PresManager:
                 request_formats.append(
                     await pres_exch_format.handler(self.profile).create_bound_request(
                         pres_ex_record,
-                        name,
-                        version,
-                        nonce,
+                        request_data,
                     )
                 )
         if len(request_formats) == 0:
@@ -247,10 +243,9 @@ class V20PresManager:
     async def create_pres(
         self,
         pres_ex_record: V20PresExRecord,
-        requested_credentials: dict,
-        comment: str = None,
+        request_data: dict,
         *,
-        format_: V20PresFormat.Format = None,
+        comment: str = None,
     ) -> Tuple[V20PresExRecord, V20Pres]:
         """
         Create a presentation.
@@ -297,8 +292,7 @@ class V20PresManager:
                 pres_formats.append(
                     await pres_exch_format.handler(self.profile).create_pres(
                         pres_ex_record,
-                        requested_credentials,
-                        comment,
+                        request_data,
                     )
                 )
         if len(pres_formats) == 0:

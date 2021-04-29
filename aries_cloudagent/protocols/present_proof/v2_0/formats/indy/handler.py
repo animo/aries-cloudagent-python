@@ -82,30 +82,6 @@ class IndyPresExchangeHandler(V20PresFormatHandler):
         # Validate, throw if not valid
         Schema(unknown=RAISE).load(attachment_data)
 
-    def get_format_data(self, message_type: str, data: dict) -> PresFormatAttachment:
-        """Get presentation format and attachment objects for use in presentation ex messages.
-
-        Returns a tuple of both presentation format and attachment decorator for use
-        in presentation exchange messages. It looks up the correct format identifier and
-        encodes the data as a base64 attachment.
-
-        Args:
-            message_type (str): The message type for which to return the cred format.
-                Should be one of the message types defined in the message types file
-            data (dict): The data to include in the attach decorator
-
-        Returns:
-            PresFormatAttachment: Presentation format and attachment data objects
-
-        """
-        return (
-            V20PresFormat(
-                attach_id=format.api,
-                format_=ATTACHMENT_FORMAT[message_type][format.api],
-            ),
-            AttachDecorator.data_base64(data, ident=format.api),
-        )
-
     async def create_exchange_for_proposal(
         self,
         pres_ex_record: V20PresExRecord,
@@ -130,10 +106,7 @@ class IndyPresExchangeHandler(V20PresFormatHandler):
     async def create_bound_request(
         self,
         pres_ex_record: V20PresExRecord,
-        name: str = None,
-        version: str = None,
-        nonce: str = None,
-        comment: str = None,
+        request_data: dict = None,
     ) -> Tuple[V20PresFormat, AttachDecorator]:
         """
         Create a presentation request bound to a proposal.
@@ -141,33 +114,28 @@ class IndyPresExchangeHandler(V20PresFormatHandler):
         Args:
             pres_ex_record: Presentation exchange record for which
                 to create presentation request
-            fmt2filter: Mapping between format and filter
-            name: name to use in presentation request (None for default)
-            version: version to use in presentation request (None for default)
-            nonce: nonce to use in presentation request (None to generate)
-            comment: Optional human-readable comment pertaining to request creation
+            request_data: Dict 
 
         Returns:
             A tuple (updated presentation exchange record, presentation request message)
 
         """
+        name = request_data.get("name") or "proof-request"
+        version = request_data.get("version") or "1.0"
+        nonce = request_data.get("nonce") or await generate_pr_nonce()
         indy_proof_request = V20PresProposal.deserialize(
             pres_ex_record.pres_proposal
         ).attachment(format)
 
-        indy_proof_request["name"] = name or "proof-request"
-        indy_proof_request["version"] = version or "1.0"
-        indy_proof_request["nonce"] = nonce or await generate_pr_nonce()
         return self.get_format_data(PRES_20_REQUEST, indy_proof_request)
 
     async def create_pres(
         self,
         pres_ex_record: V20PresExRecord,
-        requested_credentials: dict,
-        comment: str = None,
+        request_data: dict = None,
     ) -> Tuple[V20PresFormat, AttachDecorator]:
         """Create a presentation."""
-
+        requested_credentials= request_data.get("requested_credentials")
         # Get all credentials for this presentation
         holder = self._profile.inject(IndyHolder)
         credentials = {}

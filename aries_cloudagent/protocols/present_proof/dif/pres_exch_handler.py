@@ -50,7 +50,6 @@ from .pres_exch import (
     SchemaInputDescriptor,
     InputDescriptorMapping,
     PresentationSubmission,
-    VerifiablePresentation,
 )
 
 
@@ -890,6 +889,7 @@ class DIFPresExchHandler:
         pd: PresentationDefinition,
         derive_suite: LinkedDataProof,
         issue_suite: LinkedDataProof,
+        proof_purpose: ProofPurpose = None,
         challenge: str = None,
         domain: str = None,
     ) -> dict:
@@ -925,6 +925,7 @@ class DIFPresExchHandler:
             suite=issue_suite,
             document_loader=document_loader,
             challenge=challenge,
+            proof_purpose=proof_purpose,
         )
         return signed_vp
 

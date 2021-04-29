@@ -6,6 +6,7 @@ from marshmallow import RAISE
 import json
 from typing import Mapping, Tuple
 import asyncio
+from uuid import uuid4
 import time
 
 from ......cache.base import BaseCache
@@ -25,14 +26,13 @@ from ...message_types import (
     PRES_20_PROPOSAL,
     PRES_20_ACK,
 )
-from ....dif.proof_request import DIFProofRequestSchema
+from ....dif.pres_request_schema import DIFPresRequestSchema
+from ....dif.pres_proposal_schema import DIFPresProposalSchema
+from ....dif.pres_schema import DIFPresSchema
 from ....dif.pres_exch_handler import DIFPresExchHandler
 from ....dif.pres_exch import (
-    VerifiablePresentation,
-    VerifiablePresentationSchema,
-    InputDescriptorsSchema,
-    PresentationDefinition,
     ClaimFormat,
+    PresentationDefinition,
 )
 from ......vc.ld_proofs import (
     Ed25519Signature2018,
@@ -195,9 +195,9 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
 
         """
         mapping = {
-            PRES_20_REQUEST: DIFProofRequestSchema,
-            PRES_20_PROPOSAL: InputDescriptorsSchema,
-            PRES_20: VerifiablePresentationSchema,
+            PRES_20_REQUEST: DIFPresRequestSchema,
+            PRES_20_PROPOSAL: DIFPresProposalSchema,
+            PRES_20: DIFPresSchema,
         }
 
         # Get schema class
@@ -205,30 +205,6 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
 
         # Validate, throw if not valid
         Schema(unknown=RAISE).load(attachment_data)
-
-    def get_format_data(self, message_type: str, data: dict) -> PresFormatAttachment:
-        """Get presentation format and attachment objects for use in presentation ex messages.
-
-        Returns a tuple of both presentation format and attachment decorator for use
-        in presentation exchange messages. It looks up the correct format identifier and
-        encodes the data as a base64 attachment.
-
-        Args:
-            message_type (str): The message type for which to return the cred format.
-                Should be one of the message types defined in the message types file
-            data (dict): The data to include in the attach decorator
-
-        Returns:
-            PresFormatAttachment: Presentation format and attachment data objects
-
-        """
-        return (
-            V20PresFormat(
-                attach_id=format.api,
-                format_=ATTACHMENT_FORMAT[message_type][format.api],
-            ),
-            AttachDecorator.data_json(data, ident=format.api),
-        )
     
     async def create_exchange_for_proposal(
         self,
@@ -254,10 +230,7 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
     async def create_bound_request(
         self,
         pres_ex_record: V20PresExRecord,
-        name: str = None,
-        version: str = None,
-        nonce: str = None,
-        comment: str = None,
+        request_data: dict,
     ) -> Tuple[V20PresFormat, AttachDecorator]:
         """
         Create a presentation request bound to a proposal.
@@ -283,8 +256,7 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
     async def create_pres(
         self,
         pres_ex_record: V20PresExRecord,
-        requested_credentials: dict,
-        comment: str = None,
+        request_data: dict,
     ) -> Tuple[V20PresFormat, AttachDecorator]:
         """Create a presentation."""
         async with self.profile.session() as session:
@@ -295,12 +267,10 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
             ).attachment(format)
             challenge = proof_request.get("challenge") or None
             domain = proof_request.get("domain") or None
-            pres_definition = PresentationDefinition.deserialize(proof_request.get("presentation_definitions"))
+            pres_definition = PresentationDefinition.deserialize(proof_request.get("presentation_definition"))
 
             try:    
                 holder = self.profile.session.inject(VCHolder)
-                # Get stored credentials filtered by context, type & schema
-                # If not specified otherwise
                 types = []
                 contexts = []
                 schema_ids = []
@@ -351,6 +321,13 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
                 # default is Ed25519Signature2018
                 issue_suite = self._get_issue_suite(proof_type="Ed25519Signature2018", wallet=wallet, issuer_id=issuer_id)
             dif_handler = DIFPresExchHandler(self.profile)
+
+            proof_purpose=None
+            if not challenge:
+                challenge = str(uuid4().hex)
+            else:
+                proof_purpose = AuthenticationProofPurpose(challenge=challenge, domain=domain)
+
             pres = dif_handler.create_vp(
                 challenge=challenge,
                 domain=domain,
@@ -359,6 +336,7 @@ class DIFPresExchangeHandler(V20PresFormatHandler):
                 credentials=records,
                 issue_suite=issue_suite,
                 derive_suite=derive_suite,
+                proof_purpose=proof_purpose,
             )
             return self.get_format_data(PRES_20, pres)
 

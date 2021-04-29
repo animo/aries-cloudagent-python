@@ -5,8 +5,8 @@ from ....messaging.valid import UUID4
 from .pres_exch import PresentationDefinitionSchema
 
 
-class DIFProofRequestSchema(OpenAPISchema):
-    """Schema for DIF proof request."""
+class DIFPresRequestSchema(OpenAPISchema):
+    """Schema for DIF pres request."""
 
     challenge = fields.String(
         description="Challenge protect against replay attack",
@@ -25,5 +25,5 @@ class DIFProofRequestSchema(OpenAPISchema):
     presentation_definition = fields.Nested(
         PresentationDefinitionSchema(),
         required=False,
-        data_key="presentation_definitions",
+        data_key="presentation_definition",
     )

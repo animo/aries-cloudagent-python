@@ -614,7 +614,7 @@ class InputDescriptors(BaseModel):
     def __init__(
         self,
         *,
-        _id: str = None,
+        id: str = None,
         groups: Sequence[str] = None,
         name: str = None,
         purpose: str = None,
@@ -623,7 +623,7 @@ class InputDescriptors(BaseModel):
         schemas: Sequence[SchemaInputDescriptor] = None,
     ):
         """Initialize InputDescriptors."""
-        self._id = _id
+        self.id = id
         self.groups = groups
         self.name = name
         self.purpose = purpose
@@ -641,7 +641,7 @@ class InputDescriptorsSchema(BaseModelSchema):
         model_class = InputDescriptors
         unknown = EXCLUDE
 
-    _id = fields.Str(description="ID", required=False, data_key="id")
+    id = fields.Str(description="ID", required=False, data_key="id")
     groups = fields.List(
         fields.Str(
             description="Group",
@@ -737,7 +737,7 @@ class PresentationDefinition(BaseModel):
     def __init__(
         self,
         *,
-        _id: str = None,
+        id: str = None,
         name: str = None,
         purpose: str = None,
         fmt: ClaimFormat = None,
@@ -747,7 +747,7 @@ class PresentationDefinition(BaseModel):
     ):
         """Initialize flattened single-JWS to include in attach decorator data."""
         super().__init__(**kwargs)
-        self._id = _id
+        self.id = id
         self.name = name
         self.purpose = purpose
         self.fmt = fmt
@@ -764,7 +764,7 @@ class PresentationDefinitionSchema(BaseModelSchema):
         model_class = PresentationDefinition
         unknown = EXCLUDE
 
-    _id = fields.Str(
+    id = fields.Str(
         required=False,
         description="Unique Resource Identifier",
         **UUID4,
@@ -814,12 +814,12 @@ class InputDescriptorMapping(BaseModel):
     def __init__(
         self,
         *,
-        _id: str = None,
+        id: str = None,
         fmt: str = None,
         path: str = None,
     ):
         """Initialize InputDescriptorMapping."""
-        self._id = _id
+        self.id = id
         self.fmt = fmt
         self.path = path
 
@@ -833,7 +833,7 @@ class InputDescriptorMappingSchema(BaseModelSchema):
         model_class = InputDescriptorMapping
         unknown = EXCLUDE
 
-    _id = fields.Str(
+    id = fields.Str(
         description="ID",
         required=False,
         data_key="id",
@@ -862,12 +862,12 @@ class PresentationSubmission(BaseModel):
     def __init__(
         self,
         *,
-        _id: str = None,
+        id: str = None,
         definition_id: str = None,
         descriptor_maps: Sequence[InputDescriptorMapping] = None,
     ):
         """Initialize InputDescriptorMapping."""
-        self._id = _id
+        self.id = id
         self.definition_id = definition_id
         self.descriptor_maps = descriptor_maps
 
@@ -881,7 +881,7 @@ class PresentationSubmissionSchema(BaseModelSchema):
         model_class = PresentationSubmission
         unknown = EXCLUDE
 
-    _id = fields.Str(
+    id = fields.Str(
         description="ID",
         required=False,
         **UUID4,
@@ -912,79 +912,79 @@ class StrOrDictField(fields.Field):
             raise ValidationError("Field should be str or dict")
 
 
-class VerifiablePresentation(BaseModel):
-    """Single VerifiablePresentation object."""
+# class VerifiablePresentation(BaseModel):
+#     """Single VerifiablePresentation object."""
 
-    class Meta:
-        """VerifiablePresentation metadata."""
+#     class Meta:
+#         """VerifiablePresentation metadata."""
 
-        schema_class = "VerifiablePresentationSchema"
+#         schema_class = "VerifiablePresentationSchema"
 
-    def __init__(
-        self,
-        *,
-        id: str = None,
-        contexts: Sequence[Union[str, dict]] = None,
-        types: Sequence[str] = None,
-        credentials: Sequence[dict] = None,
-        proof: Sequence[dict] = None,
-        presentation_submission: PresentationSubmission = None,
-    ):
-        """Initialize VerifiablePresentation."""
-        self.id = id
-        self.contexts = contexts
-        self.types = types
-        self.credentials = credentials
-        self.proof = proof
-        self.presentation_submission = presentation_submission
+#     def __init__(
+#         self,
+#         *,
+#         id: str = None,
+#         contexts: Sequence[Union[str, dict]] = None,
+#         types: Sequence[str] = None,
+#         credentials: Sequence[dict] = None,
+#         proof: Sequence[dict] = None,
+#         presentation_submission: PresentationSubmission = None,
+#     ):
+#         """Initialize VerifiablePresentation."""
+#         self.id = id
+#         self.contexts = contexts
+#         self.types = types
+#         self.credentials = credentials
+#         self.proof = proof
+#         self.presentation_submission = presentation_submission
 
 
-class VerifiablePresentationSchema(BaseModelSchema):
-    """Single Field Schema."""
+# class VerifiablePresentationSchema(BaseModelSchema):
+#     """Single Field Schema."""
 
-    class Meta:
-        """VerifiablePresentationSchema metadata."""
+#     class Meta:
+#         """VerifiablePresentationSchema metadata."""
 
-        model_class = VerifiablePresentation
-        unknown = INCLUDE
+#         model_class = VerifiablePresentation
+#         unknown = INCLUDE
 
-    id = fields.Str(
-        description="ID",
-        required=False,
-        **UUID4,
-        data_key="id",
-    )
-    contexts = fields.List(
-        StrOrDictField(),
-        data_key="@context",
-    )
-    types = fields.List(
-        fields.Str(description="Types", required=False),
-        data_key="type",
-    )
-    credentials = fields.List(
-        fields.Dict(description="Credentials", required=False),
-        data_key="verifiableCredential",
-    )
-    proof = fields.Nested(
-        LinkedDataProofSchema(),
-        required=True,
-        description="The proof of the credential",
-        example={
-            "type": "Ed25519Signature2018",
-            "verificationMethod": (
-                "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyG"
-                "o38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"
-            ),
-            "created": "2019-12-11T03:50:55",
-            "proofPurpose": "assertionMethod",
-            "jws": (
-                "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df"
-                "_keblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
-            ),
-        },
-        data_key="proof",
-    )
-    presentation_submission = fields.Nested(
-        PresentationSubmissionSchema, data_key="presentation_submission"
-    )
+#     id = fields.Str(
+#         description="ID",
+#         required=False,
+#         **UUID4,
+#         data_key="id",
+#     )
+#     contexts = fields.List(
+#         StrOrDictField(),
+#         data_key="@context",
+#     )
+#     types = fields.List(
+#         fields.Str(description="Types", required=False),
+#         data_key="type",
+#     )
+#     credentials = fields.List(
+#         fields.Dict(description="Credentials", required=False),
+#         data_key="verifiableCredential",
+#     )
+#     proof = fields.Nested(
+#         LinkedDataProofSchema(),
+#         required=True,
+#         description="The proof of the credential",
+#         example={
+#             "type": "Ed25519Signature2018",
+#             "verificationMethod": (
+#                 "did:key:z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyG"
+#                 "o38EefXmgDL#z6Mkgg342Ycpuk263R9d8Aq6MUaxPn1DDeHyGo38EefXmgDL"
+#             ),
+#             "created": "2019-12-11T03:50:55",
+#             "proofPurpose": "assertionMethod",
+#             "jws": (
+#                 "eyJhbGciOiAiRWREU0EiLCAiYjY0IjogZmFsc2UsICJjcml0JiNjQiXX0..lKJU0Df"
+#                 "_keblRKhZAS9Qq6zybm-HqUXNVZ8vgEPNTAjQKBhQDxvXNo7nvtUBb_Eq1Ch6YBKY5qBQ"
+#             ),
+#         },
+#         data_key="proof",
+#     )
+#     presentation_submission = fields.Nested(
+#         PresentationSubmissionSchema, data_key="presentation_submission"
+#     )
