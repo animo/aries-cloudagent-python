@@ -1,5 +1,6 @@
 """Verifiable Credential and Presentation proving methods."""
 
+import logging
 from typing import List
 
 
@@ -14,6 +15,8 @@ from ..ld_proofs import (
 )
 from ..ld_proofs.constants import CREDENTIALS_CONTEXT_V1_URL
 from .models.credential import VerifiableCredentialSchema
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def create_presentation(
@@ -43,6 +46,9 @@ async def create_presentation(
     # Validate structure of all credentials
     errors = VerifiableCredentialSchema().validate(credentials, many=True)
     if len(errors) > 0:
+        LOGGER.debug(
+            "Not all credentials have a valid structure:", {errors, credentials}
+        )
         raise LinkedDataProofException(
             f"Not all credentials have a valid structure: {errors}"
         )
