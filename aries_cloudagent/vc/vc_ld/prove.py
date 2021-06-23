@@ -46,9 +46,7 @@ async def create_presentation(
     # Validate structure of all credentials
     errors = VerifiableCredentialSchema().validate(credentials, many=True)
     if len(errors) > 0:
-        LOGGER.debug(
-            "Not all credentials have a valid structure:", {errors, credentials}
-        )
+        LOGGER.debug(f"Not all credentials have a valid structure: {credentials}")
         raise LinkedDataProofException(
             f"Not all credentials have a valid structure: {errors}"
         )
